@@ -143,11 +143,12 @@ class WorkflowTemplate:
     """
 
     def __init__(self, title, uid=None, tags=None, version=None, policy=None,
-                 topics=None):
+                 draft=None, topics=None):
         self.title = title
         self.tags = tags or []
         self.uid = uid or str(uuid4())
         self.version = int(version) if version is not None else 1
+        self.draft = bool(draft)
         self.topics = topics
         if policy is None:
             self.policy = OverrunPolicy.get_default_policy()
@@ -245,11 +246,15 @@ class WorkflowTemplate:
             topics "blob" and "foo" only
         """
         # 'title' is the only mandatory key
-        title, uid = wf_dict['title'], wf_dict.get('id')
-        tags, version = wf_dict.get('tags'), wf_dict.get('version')
-        policy, topics = wf_dict.get('policy'), wf_dict.get('topics')
-        wf_tmpl = cls(title, uid=uid, tags=tags, version=version,
-                      policy=policy, topics=topics)
+        wf_tmpl = cls(
+            wf_dict['title'],
+            uid=wf_dict.get('id'),
+            tags=wf_dict.get('tags'),
+            version=wf_dict.get('version'),
+            draft=wf_dict.get('draft'),
+            policy=wf_dict.get('policy'),
+            topics=wf_dict.get('topics')
+        )
         task_ids = dict()
         for task_dict in wf_dict.get('tasks', []):
             task_tmpl = TaskTemplate.from_dict(task_dict)
@@ -268,9 +273,15 @@ class WorkflowTemplate:
         template object.
         """
         wf_dict = {
-            "title": self.title, "id": self.uid, "tags": self.tags,
-            "version": int(self.version), "policy": self.policy.value,
-            "topics": self.topics, "tasks": [], "graph": {}
+            "title": self.title,
+            "id": self.uid,
+            "tags": self.tags,
+            "version": int(self.version),
+            "draft": bool(self.draft),
+            "policy": self.policy.value,
+            "topics": self.topics,
+            "tasks": [],
+            "graph": {}
         }
         for task_tmpl in self.tasks:
             wf_dict['tasks'].append(task_tmpl.as_dict())
