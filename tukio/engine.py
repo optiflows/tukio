@@ -2,8 +2,8 @@
 Tukio Workflow Engine
 """
 import asyncio
-import weakref
 import logging
+import weakref
 
 from tukio.workflow import OverrunPolicy, new_workflow
 from tukio.broker import get_broker
@@ -122,6 +122,10 @@ class _WorkflowSelector:
         return list(templates)
 
 
+class DraftError(Exception):
+    pass
+
+
 class Engine(asyncio.Future):
 
     """
@@ -207,6 +211,9 @@ class Engine(asyncio.Future):
         Duplicates or invalid descriptions raise an exception.
         This operation does not affect workflow executions in progress.
         """
+        if template.draft:
+            raise DraftError('template must not be a draft')
+
         template.validate()
         self._selector.load(template)
         log.debug("new workflow template loaded: %s", template)
