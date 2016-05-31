@@ -1,7 +1,11 @@
+import logging
 from uuid import uuid4
 
 from .task import new_task
 from tukio.utils import topics_to_listen
+
+
+log = logging.getLogger(__name__)
 
 
 class TaskTemplate:
@@ -23,11 +27,10 @@ class TaskTemplate:
     def listen(self):
         return topics_to_listen(self.topics)
 
-    def new_task(self, *args, loop=None, **kwargs):
+    def new_task(self, inputs, loop=None):
         """
         Create a new task from the current task template.
         """
-        inputs = (args, kwargs)
         return new_task(self.name, inputs=inputs,
                         config=self.config, loop=loop)
 

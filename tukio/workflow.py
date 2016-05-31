@@ -7,7 +7,7 @@ import logging
 from uuid import uuid4
 
 from tukio.dag import DAG
-from tukio.task import TaskTemplate, TaskRegistry
+from tukio.task import TaskTemplate, TaskRegistry, JoinTask
 from tukio.utils import future_state, topics_to_listen, Listen
 from tukio.broker import get_broker
 
@@ -426,33 +426,36 @@ class Workflow(asyncio.Future):
             return
         # Run the root task
         root_tmpl = self._template.root()
-        task = self._new_task(root_tmpl, (args, kwargs))
+        task = self._next_task(root_tmpl, (args, kwargs))
         self._start = datetime.utcnow()
         # The workflow may fail to start at once
         if not task:
             self._try_mark_done()
 
-    def _new_task(self, task_tmpl, inputs):
+    def _call_join_task(self, task_tmpl, task, inputs):
         """
-        Each new task must be created successfully, else the whole workflow
-        shall stop running (wrong workflow config or bug).
+        Plan an update on a join task informing one of it's parents is done.
         """
-        try:
-            args, kwargs = inputs
-            task = task_tmpl.new_task(*args, loop=self._loop, **kwargs)
+        log.debug('new join task call for {}'.format(task_tmpl))
+
+        args, kwargs = inputs
+        holder = task.holder
+        if not holder:
+            raise Exception("No holder on task {}".format(task))
+
+        return holder.data_received(*args, from_parent=True, **kwargs)
+
+    def _create_task(self, task_tmpl, inputs):
+            task = task_tmpl.new_task(inputs=inputs, loop=self._loop)
+
             # Register the `data_received` callback (if required) as soon as
             # the execution of the task is scheduled.
             self._register_to_broker(task_tmpl, task)
-        except Exception as exc:
-            log.error('failed to create task %s: raised %s', task_tmpl, exc)
-            self._internal_exc = exc
-            self._cancel_all_tasks()
-            return None
-        else:
             log.debug('new task created for %s', task_tmpl)
             done_cb = functools.partial(self._run_next_tasks, task_tmpl)
             task.add_done_callback(done_cb)
             self.tasks.add(task)
+
             # Create the exec dict of the task
             exec_dict = {'start': datetime.utcnow()}
             try:
@@ -461,6 +464,26 @@ class Workflow(asyncio.Future):
                 exec_dict['id'] = None
             self._tasks_by_id[task_tmpl.uid] = (task, exec_dict)
             return task
+
+    def _next_task(self, task_tmpl, inputs):
+        """
+        Each new task must be created successfully, else the whole workflow
+        shall stop running (wrong workflow config or bug).
+        """
+        task = None
+        try:
+            klass, _ = TaskRegistry.get(task_tmpl.name)
+            if task_tmpl.uid in self._tasks_by_id:
+                task, exec_dict = self._tasks_by_id[task_tmpl.uid]
+                call = self._call_join_task(task_tmpl, task, inputs)
+            else:
+                task = self._create_task(task_tmpl, inputs)
+        except Exception as exc:
+            log.error('failed to create or call task %s: raised %s', task_tmpl, exc)
+            self._internal_exc = exc
+            self._cancel_all_tasks()
+            return None
+        return task
 
     def _run_next_tasks(self, task_tmpl, future):
         """
@@ -483,7 +506,7 @@ class Workflow(asyncio.Future):
             succ_tmpls = self._template.dag.successors(task_tmpl)
             for succ_tmpl in succ_tmpls:
                 inputs = ((result,), {})
-                succ_task = self._new_task(succ_tmpl, inputs)
+                succ_task = self._next_task(succ_tmpl, inputs)
                 if not succ_task:
                     break
         finally:
