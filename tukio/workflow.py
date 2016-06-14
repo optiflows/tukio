@@ -433,7 +433,7 @@ class Workflow(asyncio.Future):
         if self._internal_exc:
             self._cancel_all_tasks()
 
-    def run(self, *args, **kwargs):
+    def run(self, data):
         """
         Execute the workflow following the description passed at init.
         """
@@ -442,7 +442,7 @@ class Workflow(asyncio.Future):
             return
         # Run the root task
         root_tmpl = self._template.root()
-        task = self._new_task(root_tmpl, (args, kwargs))
+        task = self._new_task(root_tmpl, data)
         self._start = datetime.utcnow()
         # The workflow may fail to start at once
         if not task:
