@@ -47,7 +47,10 @@ class JoinTask(TaskHolder):
                 return
 
     async def execute(self, event):
-        self._wait_for = list(self.config['wait_for'])
+        if isinstance(self.config['wait_for'], list):
+            self._wait_for = list(self.config['wait_for'])
+        else:
+            self._wait_for = self.config['wait_for']
         log.info(
             'Join task waiting for tasks (%s) (timeout: %s)',
             self._wait_for, self._timeout
