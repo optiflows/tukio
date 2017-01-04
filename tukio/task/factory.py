@@ -1,8 +1,9 @@
 import asyncio
+import logging
+import inspect
 from copy import copy
 from datetime import datetime
 from enum import Enum
-import inspect
 from uuid import uuid4
 
 from tukio.broker import get_broker, EXEC_TOPIC
@@ -10,6 +11,9 @@ from tukio.event import EventSource
 from tukio.utils import FutureState, SkipTask
 
 from .task import TaskRegistry
+
+
+log = logging.getLogger(__name__)
 
 
 class TaskExecState(Enum):
@@ -118,31 +122,28 @@ class TukioTask(asyncio.Task):
         """
         return self._in_progress
 
-    def set_result(self, result):
+    def result(self):
         """
-        Wrapper around `Future.set_result()` to automatically dispatch a
-        `TaskExecState.end` event.
+        Wrapper around `Future.result()` to automatically dispatch a
+        `TaskExecState.end` or `TaskExecState.error` event.
         """
-        super().set_result(result)
-        # Freeze output data (dict or event)
-        self._outputs = copy(result)
-        self._end = datetime.utcnow()
-        data = {'type': TaskExecState.end.value, 'content': self._outputs}
-        self._broker.dispatch(data=data, topic=EXEC_TOPIC, source=self._source)
-
-    def set_exception(self, exception):
-        """
-        Wrapper around `Future.set_exception()` to automatically dispatch a
-        `TaskExecState.error` event.
-        """
-        super().set_exception(exception)
-        self._end = datetime.utcnow()
-
-        etype = TaskExecState.error
-        if isinstance(exception, SkipTask):
-            etype = TaskExecState.skip
-        data = {'type': etype.value, 'content': exception}
-        self._broker.dispatch(data=data, topic=EXEC_TOPIC, source=self._source)
+        try:
+            result = super().result()
+        except Exception as exc:
+            self._end = datetime.utcnow()
+            etype = TaskExecState.error
+            if isinstance(exc, SkipTask):
+                etype = TaskExecState.skip
+            data = {'type': etype.value, 'content': exc}
+            self._broker.dispatch(data=data, topic=EXEC_TOPIC, source=self._source)
+            raise
+        else:
+            # Freeze output data (dict or event)
+            self._outputs = copy(result)
+            self._end = datetime.utcnow()
+            data = {'type': TaskExecState.end.value, 'content': self._outputs}
+            self._broker.dispatch(data=data, topic=EXEC_TOPIC, source=self._source)
+            return result
 
     def dispatch_progress(self, data):
         """

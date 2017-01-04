@@ -159,7 +159,9 @@ class TopicManager:
         """
         # Override topic and loop with the values passed at init when used as a
         # regular instance method.
-        loop = cls._loop if isinstance(cls, TopicManager) else None
+        # XXX 3.6 bug on `current_task(None)`
+        # See https://bugs.python.org/issue29271
+        loop = cls._loop if isinstance(cls, TopicManager) else asyncio.get_event_loop()
         if isinstance(cls, TopicManager):
             topic = cls._topic
         coro = asyncio.Task.current_task(loop=loop).data_received
@@ -178,7 +180,9 @@ class TopicManager:
         """
         # Override topic and loop with the values passed at init when used as a
         # regular instance method.
-        loop = cls._loop if isinstance(cls, TopicManager) else None
+        # XXX 3.6 bug on `current_task(None)`
+        # See https://bugs.python.org/issue29271
+        loop = cls._loop if isinstance(cls, TopicManager) else asyncio.get_event_loop()
         if isinstance(cls, TopicManager):
             topic = cls._topic
         coro = asyncio.Task.current_task(loop=loop).data_received
