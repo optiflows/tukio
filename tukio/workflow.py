@@ -10,7 +10,7 @@ from uuid import uuid4
 from tukio.dag import DAG
 from tukio.task import TaskTemplate, TaskRegistry, UnknownTaskName, TukioTask
 from tukio.utils import FutureState, Listen, SkipTask
-from tukio.broker import get_broker, EXEC_TOPIC
+from tukio.broker import get_broker, workflow_exec_topics
 from tukio.event import Event, EventSource
 
 
@@ -625,8 +625,8 @@ class Workflow(asyncio.Future):
             data = data.data
         self._broker.dispatch(
             {'type': etype.value, 'content': data},
-            topic=EXEC_TOPIC,
-            source=self._source
+            topics=workflow_exec_topics(self.uid),
+            source=self._source,
         )
 
     @_current_workflow

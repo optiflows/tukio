@@ -1,13 +1,13 @@
 import asyncio
 from copy import copy
-from datetime import datetime
 from enum import Enum
 import inspect
 from uuid import uuid4
+from datetime import datetime
 
-from tukio.broker import get_broker, EXEC_TOPIC
 from tukio.event import EventSource
 from tukio.utils import FutureState, SkipTask
+from tukio.broker import get_broker, workflow_exec_topics
 
 from .task import TaskRegistry
 
@@ -128,7 +128,11 @@ class TukioTask(asyncio.Task):
         self._outputs = copy(result)
         self._end = datetime.utcnow()
         data = {'type': TaskExecState.end.value, 'content': self._outputs}
-        self._broker.dispatch(data=data, topic=EXEC_TOPIC, source=self._source)
+        self._broker.dispatch(
+            data,
+            topics=workflow_exec_topics(self._source._workflow_exec_id),
+            source=self._source,
+        )
 
     def set_exception(self, exception):
         """
@@ -137,12 +141,15 @@ class TukioTask(asyncio.Task):
         """
         super().set_exception(exception)
         self._end = datetime.utcnow()
-
         etype = TaskExecState.error
         if isinstance(exception, SkipTask):
             etype = TaskExecState.skip
         data = {'type': etype.value, 'content': exception}
-        self._broker.dispatch(data=data, topic=EXEC_TOPIC, source=self._source)
+        self._broker.dispatch(
+            data,
+            topics=workflow_exec_topics(self._source._workflow_exec_id),
+            source=self._source,
+        )
 
     def dispatch_progress(self, data):
         """
@@ -153,7 +160,11 @@ class TukioTask(asyncio.Task):
             'type': TaskExecState.progress.value,
             'content': data
         }
-        self._broker.dispatch(event_data, topic=EXEC_TOPIC, source=self._source)
+        self._broker.dispatch(
+            event_data,
+            topics=workflow_exec_topics(self._source._workflow_exec_id),
+            source=self._source,
+        )
 
     def _step(self, exc=None):
         """
@@ -174,7 +185,11 @@ class TukioTask(asyncio.Task):
                 'type': TaskExecState.begin.value,
                 'content': self._inputs
             }
-            self._broker.dispatch(data, topic=EXEC_TOPIC, source=self._source)
+            self._broker.dispatch(
+                data,
+                topics=workflow_exec_topics(self._source._workflow_exec_id),
+                source=self._source,
+            )
         super()._step(exc)
 
 

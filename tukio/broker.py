@@ -28,7 +28,11 @@ class _BrokerRegistry:
         return broker
 
 
-EXEC_TOPIC = "__exec_topic__"
+EXEC_TOPIC = '__exec_topic__'
+
+
+def workflow_exec_topics(uid):
+    return (EXEC_TOPIC, '{}/{}'.format(EXEC_TOPIC, uid))
 
 
 class Broker(object):
@@ -53,7 +57,7 @@ class Broker(object):
         self._global_handlers = set()
         self._topic_handlers = dict()
 
-    def dispatch(self, data, topic=None, source=None):
+    def dispatch(self, data, topics=None, source=None):
         """
         Passes an event (aka the data) received to the right handlers.
         If topic is not None, the event is dispatched to handlers registered
@@ -64,11 +68,16 @@ class Broker(object):
         """
         # Always call registered global handlers
         handlers = self._global_handlers
-        if topic is not None:
-            try:
-                handlers = handlers | self._topic_handlers[topic]
-            except KeyError:
-                pass
+
+        # Parse topics if iterable
+        if isinstance(topics, str):
+            topics = (topics,)
+        if hasattr(topics, '__iter__'):
+            for topic in topics:
+                try:
+                    handlers = handlers | self._topic_handlers[topic]
+                except KeyError:
+                    pass
 
         # Schedule the execution of all registered handlers
         for handler in handlers:
@@ -76,7 +85,7 @@ class Broker(object):
             if isinstance(data, Event):
                 event = Event(data, topic=data.topic, source=data.source)
             else:
-                event = Event(data, topic, source)
+                event = Event(data, topics, source)
             if asyncio.iscoroutinefunction(handler):
                 asyncio.ensure_future(handler(event), loop=self._loop)
             else:
@@ -105,16 +114,17 @@ class Broker(object):
                                  ' topics'.format(coro_or_cb))
             self._global_handlers.add(coro_or_cb)
             log.debug('registered global handler: %s', coro_or_cb)
+            return
+
         # Register a per-topic handler
-        else:
-            if coro_or_cb in self._global_handlers:
-                raise ValueError('{} already registered as global'
-                                 ' handler'.format(coro_or_cb))
-            try:
-                self._topic_handlers[topic].add(coro_or_cb)
-            except KeyError:
-                self._topic_handlers[topic] = {coro_or_cb}
-            log.debug('registered topic handler: %s', coro_or_cb)
+        if coro_or_cb in self._global_handlers:
+            raise ValueError('{} already registered as global'
+                             ' handler'.format(coro_or_cb))
+        try:
+            self._topic_handlers[topic].add(coro_or_cb)
+        except KeyError:
+            self._topic_handlers[topic] = {coro_or_cb}
+        log.debug('registered topic handler: %s', coro_or_cb)
 
     def unregister(self, coro_or_cb, topic=None):
         """

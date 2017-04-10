@@ -46,8 +46,6 @@ class Event:
         """
         Automatically copy the given data and source if any.
         """
-        if topic and not isinstance(topic, str):
-            raise ValueError('topic must be a string')
         if source and not isinstance(source, EventSource):
             raise ValueError('source must be an EventSource')
         if isinstance(data, dict):
