@@ -72,7 +72,7 @@ class Broker(object):
         # Parse topics if iterable
         if isinstance(topics, str):
             topics = (topics,)
-        if hasattr(topics, '__iter__'):
+        if topics is not None:
             for topic in topics:
                 try:
                     handlers = handlers | self._topic_handlers[topic]
