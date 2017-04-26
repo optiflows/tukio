@@ -451,7 +451,6 @@ class Workflow(asyncio.Future):
         )
         # A 'committed' workflow is a pending workflow not suspended
         self._committed = asyncio.Event()
-        self._committed.set()
 
     @property
     def template(self):
@@ -541,6 +540,7 @@ class Workflow(asyncio.Future):
             raise RuntimeError('a workflow can be run only once!')
 
         # Run the root task
+        self._committed.set()
         try:
             root_tmpl = self._template.root()
         except WorkflowRootTaskError as exc:
