@@ -1,7 +1,7 @@
 import asyncio
+import logging
 from copy import copy
 from datetime import datetime
-import logging
 
 from .holder import TaskHolder
 from .task import register
@@ -35,7 +35,7 @@ class JoinTask(TaskHolder):
         return self._report
 
     def add_task_report(self, task_id):
-        task_report = {'id': task_id, 'end_time': datetime.utcnow().isoformat()}
+        task_report = {'id': task_id, 'end_time': datetime.utcnow()}
         self._report['tasks'].append(task_report)
         self._task.dispatch_progress(self._report)
 
