@@ -1,11 +1,11 @@
 import asyncio
-import functools
 import inspect
 import logging
+import functools
 from copy import copy
-from datetime import datetime
 from enum import Enum
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from tukio.dag import DAG
 from tukio.task import TaskTemplate, TaskRegistry, UnknownTaskName, TukioTask
@@ -551,7 +551,7 @@ class Workflow(asyncio.Future):
             # Automatically wrap input data into an event object
             self._dispatch_exec_event(WorkflowExecState.begin, copy(event))
             task = self._new_task(root_tmpl, event)
-            self._start = datetime.utcnow()
+            self._start = datetime.now(timezone.utc)
             # The workflow may fail to start at once
             if not task:
                 self._try_mark_done()
@@ -718,7 +718,7 @@ class Workflow(asyncio.Future):
             else:
                 self.set_result(self.tasks)
                 data = None
-            self._end = datetime.utcnow()
+            self._end = datetime.now(timezone.utc)
             self._dispatch_exec_event(exec_event, data=data)
 
     def _all_tasks_done(self):

@@ -4,7 +4,7 @@ import inspect
 from copy import copy
 from enum import Enum
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
 from tukio.event import EventSource
 from tukio.utils import FutureState, SkipTask
@@ -130,7 +130,7 @@ class TukioTask(asyncio.Task):
         try:
             result = super().result()
         except Exception as exc:
-            self._end = datetime.utcnow()
+            self._end = datetime.now(timezone.utc)
             etype = TaskExecState.error
             if isinstance(exc, SkipTask):
                 etype = TaskExecState.skip
@@ -144,7 +144,7 @@ class TukioTask(asyncio.Task):
         else:
             # Freeze output data (dict or event)
             self._outputs = copy(result)
-            self._end = datetime.utcnow()
+            self._end = datetime.now(timezone.utc)
             data = {'type': TaskExecState.end.value, 'content': self._outputs}
             self._broker.dispatch(
                 data,
@@ -174,7 +174,7 @@ class TukioTask(asyncio.Task):
         `TaskExecState.begin` event.
         """
         if not self._in_progress:
-            self._start = datetime.utcnow()
+            self._start = datetime.now(timezone.utc)
             source = {'task_exec_id': self.uid}
             if self._template:
                 source['task_template_id'] = self._template.uid
