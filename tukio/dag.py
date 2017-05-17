@@ -15,6 +15,8 @@ class DAG(object):
     adjacency list to represent the graph.
     """
 
+    __slots__ = ('graph',)
+
     def __init__(self):
         self.graph = {}
 

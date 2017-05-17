@@ -19,6 +19,8 @@ class JoinTask(TaskHolder):
     The `wait_for` config parameter is mandatory and is a list of task IDs.
     """
 
+    __slots__ = ('_data_stash', '_wait_for', '_timeout', '_report')
+
     def __init__(self, config):
         super().__init__(config)
         self._data_stash = []

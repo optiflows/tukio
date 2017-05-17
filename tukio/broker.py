@@ -155,6 +155,8 @@ class TopicManager:
     a task.
     """
 
+    __slots__ = ('_loop', '_topic')
+
     def __init__(self, topic, *, loop=None):
         self._loop = loop or asyncio.get_event_loop()
         self._topic = topic

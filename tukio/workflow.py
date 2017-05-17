@@ -64,6 +64,10 @@ class WorkflowExecState(Enum):
     suspend = 'workflow-suspend'
     resume = 'workflow-resume'
 
+    @classmethod
+    def values(cls):
+        return [member.value for member in cls]
+
 
 class OverrunPolicy(Enum):
 
@@ -108,6 +112,8 @@ class OverrunPolicyHandler:
     of workflow execution objects according to the current overrun policy and
     to the list of running workflow instances (with the same template).
     """
+
+    __slots__ = ('_loop', 'template', 'policy')
 
     def __init__(self, template, loop=None):
         self._loop = loop
@@ -182,6 +188,8 @@ class WorkflowTemplate:
     engine.
     It provides an API to easily build and update a consistent workflow.
     """
+
+    __slots__ = ('uid', 'topics', 'policy', 'dag')
 
     def __init__(self, uid=None, policy=None, topics=None):
         self.uid = uid or str(uuid4())
@@ -404,6 +412,12 @@ class Workflow(asyncio.Future):
 
     # Inspired from the implementation of `asyncio.Task`
     _current_workflows = {}
+
+    __slots__ = (
+        'uid', '_template', '_start', '_end', 'tasks', '_tasks_by_id',
+        '_updated_next_tasks', '_done_tasks', '_internal_exc', '_must_cancel',
+        'lock', '_broker', '_source', '_committed',
+    )
 
     @classmethod
     def current_workflow(cls, loop=None):

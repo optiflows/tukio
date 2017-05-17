@@ -2,7 +2,6 @@ from enum import Enum
 
 
 class SkipTask(Exception):
-    pass
 
     def __init__(self, reason=None):
         self.reason = reason
@@ -59,9 +58,9 @@ class Listen(Enum):
         'topics': receive data dispatched only in template's topics
     """
 
-    everything = "everything"
-    nothing = "nothing"
-    topics = "topics"
+    everything = 'everything'
+    nothing = 'nothing'
+    topics = 'topics'
 
     @classmethod
     def get(cls, topics):

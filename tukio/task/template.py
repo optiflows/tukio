@@ -18,6 +18,8 @@ class TaskTemplate:
     `asyncio.Task`) and provide execution report.
     """
 
+    __slots__ = ('name', 'config', 'topics', 'uid')
+
     def __init__(self, name, uid=None, config=None, topics=[]):
         self.name = name
         self.config = config or {}

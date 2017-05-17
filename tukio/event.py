@@ -7,6 +7,11 @@ from copy import copy
 
 class EventSource:
 
+    __slots__ = (
+        '_workflow_template_id', '_workflow_exec_id',
+        '_task_template_id', '_task_exec_id',
+    )
+
     def __init__(self, workflow_template_id=None, workflow_exec_id=None,
                  task_template_id=None, task_exec_id=None):
         self._workflow_template_id = workflow_template_id
@@ -41,6 +46,8 @@ class EventSource:
 
 
 class Event:
+
+    __slots__ = ('_data', '_topic', '_source')
 
     def __init__(self, data, topic=None, source=None):
         """

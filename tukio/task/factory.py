@@ -24,6 +24,10 @@ class TaskExecState(Enum):
     skip = 'task-skip'
     progress = 'task-progress'
 
+    @classmethod
+    def values(cls):
+        return [member.value for member in cls]
+
 
 class TukioTask(asyncio.Task):
 
@@ -31,6 +35,12 @@ class TukioTask(asyncio.Task):
     A simple subclass of `asyncio.Task()` to add an execution ID and optionally
     bind a task holder class.
     """
+
+    __slots__ = (
+        'holder', 'uid', '_broker', '_in_progress', '_template', '_workflow',
+        '_source', '_start', '_end', '_inputs', '_outputs', '_queue',
+        '_commited',
+    )
 
     def __init__(self, coro, *, loop=None):
         super().__init__(coro, loop=loop)

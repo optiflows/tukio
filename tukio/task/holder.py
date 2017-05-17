@@ -40,6 +40,8 @@ class TaskHolder:
     factory).
     """
 
+    __slots__ = ('config', 'uid', 'queue')
+
     TASK_NAME = None
 
     def __init__(self, config=None):
