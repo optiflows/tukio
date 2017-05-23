@@ -14,7 +14,11 @@ MY_CORO_TASK_RES = 'Tukio task as coroutine'
 
 
 class MyTaskHolder(TaskHolder):
-    """A valid task holder"""
+
+    """
+    A valid task holder
+    """
+
     def __init__(self, config):
         self.config = config
         self.uid = str(uuid4())
@@ -24,7 +28,11 @@ class MyTaskHolder(TaskHolder):
 
 
 class BasicTaskHolder:
-    """A valid task does not necessarily inherit from `TaskHolder`"""
+
+    """
+    A valid task does not necessarily inherit from `TaskHolder`
+    """
+
     def __init__(self, config):
         pass
 
@@ -33,9 +41,12 @@ class BasicTaskHolder:
 
 
 class BadInitTaskHolder1:
-    """A class with `__init__` that does not match the expected signature:
+
+    """
+    A class with `__init__` that does not match the expected signature:
     (self, config, *, **kwargs)
     """
+
     def __init__(self):
         pass
 
@@ -48,7 +59,11 @@ class MyDummyError(Exception):
 
 
 class BadInitTaskHolder2:
-    """A class with `__init__` that raises an exception"""
+
+    """
+    A class with `__init__` that raises an exception
+    """
+
     def __init__(self, config):
         raise MyDummyError
 
@@ -57,7 +72,11 @@ class BadInitTaskHolder2:
 
 
 class BadInitTaskHolder3:
-    """A class without coroutine to register"""
+
+    """
+    A class without coroutine to register
+    """
+
     def __init__(self):
         pass
 
@@ -66,7 +85,11 @@ class BadInitTaskHolder3:
 
 
 class BadExecTaskHolder1:
-    """A class with a coroutine that cannot be passed data is not valid"""
+
+    """
+    A class with a coroutine that cannot be passed data is not valid
+    """
+
     def __init__(self, config):
         pass
 
@@ -75,27 +98,36 @@ class BadExecTaskHolder1:
 
 
 async def my_coro_task(data):
-    """A valid coroutine"""
+    """
+    A valid coroutine
+    """
     return MY_CORO_TASK_RES
 
 
 async def bad_coro_task():
-    """A coroutine with a bad signature (no argument)"""
-    pass
+    """
+    A coroutine with a bad signature (no argument)
+    """
 
 
 async def other_coro(data):
-    """Another valid coroutine"""
+    """
+    Another valid coroutine
+    """
     return None
 
 
 def my_func():
-    """A dummy function (not a valid Tukio task)"""
+    """
+    A dummy function (not a valid Tukio task)
+    """
     return None
 
 
 def my_gen():
-    """A dummy generator (not a valid Tukio task)"""
+    """
+    A dummy generator (not a valid Tukio task)
+    """
     yield 'dummy'
 
 

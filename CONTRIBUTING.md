@@ -44,7 +44,7 @@ First, before you submit a new issue, search to archive to avoid any duplicate w
 Features can be requested using GitHub's issue ticketing system. Have an awesome idea for Tukio? Submit an issue, if you'd like to implement the said feature, link your work to the issue so that everyone can have a look at it.
 
 * For a **major feature**, or big changes that can potentially break things, first raise an issue and describe it thoroughly (motivation behind it, code snippet, API description, etc.) so that it can be discussed.
-* **Smaller feature** can be hacked on and directly submitted as PR.  
+* **Smaller feature** can be hacked on and directly submitted as PR.
 
 ## Patches submission
 
@@ -93,20 +93,3 @@ Tukio follows the classic GitHub's zen "fork-branch-PR" regarding patch submissi
 6. Create the PR
 
     When all the above steps have been achieved, you're good to go! [Create a pull request](https://help.github.com/articles/creating-a-pull-request/) in which you'll reference the issue number.
-
-## Reach out
-
-Got a question? Have an idea for an awesome enhancement and are looking for help? You can contact the team behind Tukio by this means:
-
-<table class="tg">
-    <col width="45%">
-    <col width="65%">
-    <tr>
-    <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</td>
-    <td>
-      <p>
-        <code>#surycat</code> chan on <strong>irc.freenode.net</strong>.
-      </p>
-    </td>
-  </tr>
-</table>
