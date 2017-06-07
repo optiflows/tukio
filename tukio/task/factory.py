@@ -156,6 +156,9 @@ class TukioTask(asyncio.Task):
             self._outputs = copy(result)
             self._end = datetime.now(timezone.utc)
             data = {'type': TaskExecState.end.value, 'content': self._outputs}
+            # Comments are an additional data set sent with the outputs
+            if hasattr(self.holder, 'comments'):
+                data['content']['__comments__'] = self.holder.comments()
             self._broker.dispatch(
                 data,
                 topics=workflow_exec_topics(self._source._workflow_exec_id),

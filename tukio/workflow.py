@@ -860,10 +860,11 @@ class Workflow(asyncio.Future):
                 continue
             task_dict['exec'] = task.as_dict()
             # If the task is linked to a task holder, try to use its own report
-            try:
+            if hasattr(task.holder, 'report'):
                 task_dict['exec']['reporting'] = task.holder.report()
-            except AttributeError:
-                pass
+            # Comments are an additional data set sent with the outputs
+            if hasattr(task.holder, 'comments'):
+                task_dict['exec']['comments'] = task.holder.comments()
         return report
 
     def fast_forward(self, report):
