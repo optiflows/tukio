@@ -11,8 +11,6 @@ import asyncio
 import logging
 import inspect
 
-from tukio.broker import get_broker, EXEC_TOPIC
-
 
 log = logging.getLogger(__name__)
 
