@@ -8,10 +8,12 @@ from uuid import uuid4
 from datetime import datetime, timezone
 
 from tukio.dag import DAG
-from tukio.task import TaskTemplate, TaskRegistry, UnknownTaskName, TukioTask
 from tukio.utils import FutureState, Listen, SkipTask
 from tukio.broker import get_broker, workflow_exec_topics
 from tukio.event import Event, EventSource
+from tukio.task import (
+    TaskTemplate, TaskRegistry, UnknownTaskName, TukioTask, TukioTaskError
+)
 
 
 log = logging.getLogger(__name__)
@@ -663,13 +665,19 @@ class Workflow(asyncio.Future):
             # If the task has been skipped, we just forward the previous task
             # inputs to the next one.
             result = task.inputs
-            log.warning('task %s has been skipped', task.template)
+            log.warning('Task %s has been skipped', task.template)
         except asyncio.CancelledError:
-            log.warning('task %s has been cancelled', task.template)
+            log.warning('Task %s has been cancelled', task.template)
+            self._try_mark_done()
+            return
+        except TukioTaskError as exc:
+            log.warning(
+                'Task %s ended on error: %s', task.template, exc.task_outputs
+            )
             self._try_mark_done()
             return
         except Exception as exc:
-            log.warning('task %s ended on exception', task.template)
+            log.warning('Task %s ended on exception', task.template)
             log.exception(exc)
             self._try_mark_done()
             return
@@ -862,9 +870,6 @@ class Workflow(asyncio.Future):
             # If the task is linked to a task holder, try to use its own report
             if hasattr(task.holder, 'report'):
                 task_dict['exec']['reporting'] = task.holder.report()
-            # Comments are an additional data set sent with the outputs
-            if hasattr(task.holder, 'comments'):
-                task_dict['exec']['comments'] = task.holder.comments()
         return report
 
     def fast_forward(self, report):
