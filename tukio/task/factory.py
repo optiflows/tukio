@@ -173,15 +173,12 @@ class TukioTask(asyncio.Task):
             )
             return result
 
-    def dispatch_progress(self, data):
+    def dispatch_progress(self, data, event_type=TaskExecState.progress.value):
         """
         Dispatch task progress events in the 'EXEC_TOPIC' from
         this tukio task.
         """
-        event_data = {
-            'type': TaskExecState.progress.value,
-            'content': data
-        }
+        event_data = {'type': event_type, 'content': data}
         self._broker.dispatch(
             event_data,
             topics=workflow_exec_topics(self._source._workflow_exec_id),
