@@ -7,4 +7,4 @@ password = $PYPI_PASSWORD
 " > ~/.pypirc
 
 echo $CIRCLE_TAG > VERSION.txt
-python setup.py sdist upload
+twine upload dist/tukio-$CIRCLE_TAG.tar.gz
