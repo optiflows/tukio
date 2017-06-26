@@ -19,7 +19,7 @@ class JoinTask(TaskHolder):
     The `wait_for` config parameter is mandatory and is a list of task IDs.
     """
 
-    __slots__ = ('_data_stash', '_wait_for', '_timeout', '_report')
+    __slots__ = ('_data_stash', '_wait_for', '_timeout', '_report', '_task')
 
     def __init__(self, config):
         super().__init__(config)
@@ -31,6 +31,7 @@ class JoinTask(TaskHolder):
         self._timeout = self.config.get('timeout')
 
         # Reporting
+        self._task = None
         self._report = {'tasks': [], 'status': 'running'}
 
     def report(self):
