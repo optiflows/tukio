@@ -2,6 +2,7 @@
 Build DAGs
 """
 from copy import deepcopy
+from collections import deque
 
 
 class DAGValidationError(Exception):
@@ -138,23 +139,34 @@ class DAG(object):
         """
         Topological ordering of the DAG using Kahn's algorithm. This algorithm
         detects cycles, hence ensures the graph is a DAG.
+        Thanks to: https://algocoding.wordpress.com/2015/04/05/topological-sorting-python/
         """
-        dag = self.copy()
-        sorted_nodes = []
-        root_nodes = set(dag.root_nodes())
-        while root_nodes:
-            root = root_nodes.pop()
-            sorted_nodes.append(root)
-            # Walk through the successors of `root` to remove all its outgoing
-            # edges.
-            for node in dag.graph[root].copy():
-                dag.delete_edge(root, node)
-                if not dag.predecessors(node):
-                    root_nodes.add(node)
-        if dag.edges():
+        # determine in-degree of each node
+        in_degree = {u: 0 for u in self.graph}
+        for u in self.graph:
+            for v in self.graph[u]:
+                in_degree[v] += 1
+
+        # Collect nodes with zero in-degree
+        Q = deque()
+        for u in in_degree:
+            if in_degree[u] == 0:
+                Q.appendleft(u)
+
+        # list for order of nodes
+        edges = []
+        while Q:
+            # Choose node of zero in-degree and 'remove' it from graph
+            u = Q.pop()
+            edges.append(u)
+            for v in self.graph[u]:
+                in_degree[v] -= 1
+                if in_degree[v] == 0:
+                    Q.appendleft(v)
+
+        if len(edges) != len(self.graph):
             raise DAGValidationError('graph is not acyclic')
-        else:
-            return sorted_nodes
+        return edges
 
     def edges(self):
         """
