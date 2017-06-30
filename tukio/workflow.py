@@ -297,12 +297,15 @@ class WorkflowTemplate:
             task_ids[task_tmpl.uid] = task_tmpl
 
         # Graph
+        for up_id, down_ids_set in wf_dict.get('graph', {}).items():
+            up_tmpl = task_ids[up_id]
+            for down_id in down_ids_set:
+                down_tmpl = task_ids[down_id]
+                wf_tmpl.link(up_tmpl, down_tmpl)
+
+        # Graph validation
         try:
-            for up_id, down_ids_set in wf_dict.get('graph', {}).items():
-                up_tmpl = task_ids[up_id]
-                for down_id in down_ids_set:
-                    down_tmpl = task_ids[down_id]
-                    wf_tmpl.link(up_tmpl, down_tmpl)
+            wf_tmpl.dag.validate()
         except KeyError as exc:
             raise TemplateGraphError(exc.args[0]) from exc
 

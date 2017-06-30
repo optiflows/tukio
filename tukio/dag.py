@@ -49,12 +49,6 @@ class DAG(object):
         if predecessor not in self.graph or successor not in self.graph:
             raise KeyError('nodes do not exist in graph')
         self.graph[predecessor].add(successor)
-        try:
-            self.validate()
-        except (KeyError, DAGValidationError) as exc:
-            # Rollback the last update if it breaks the DAG
-            self.graph[predecessor].remove(successor)
-            raise exc
 
     def delete_edge(self, predecessor, successor):
         """
@@ -102,6 +96,7 @@ class DAG(object):
                 raise TypeError('dict values must be lists')
             for succ in successors:
                 dag.add_edge(node, succ)
+        dag.validate()
         return dag
 
     def root_nodes(self):
