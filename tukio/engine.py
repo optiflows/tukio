@@ -290,33 +290,23 @@ class Engine(asyncio.Future):
             return
         # Always apply the policy of the current workflow template (workflow
         # instances may run with another version of the template)
-        running = [i for i in self._instances
-                   if i.template.uid == template.uid]
-        wflow = new_workflow(template, running=running, loop=self._loop)
+        wflow = new_workflow(template, running=self._instances, loop=self._loop)
         if wflow:
-            if template.policy == OverrunPolicy.abort_running and running:
-                def cb():
-                    self._do_run(wflow, event)
-                asyncio.ensure_future(self._wait_abort(running, cb))
-            else:
-                self._do_run(wflow, event)
+            if template.policy == OverrunPolicy.abort_running:
+                others = [
+                    i for i in self._instances
+                    if i.template.uid == template.uid
+                ]
+                if others:
+                    def cb(f):
+                        self._do_run(wflow, event)
+                    others_done = asyncio.ensure_future(asyncio.wait(others))
+                    others_done.add_done_callback(cb)
+                    return wflow
+            self._do_run(wflow, event)
         else:
             log.debug("skip new workflow from %s (overrun policy)", template)
         return wflow
-
-    async def _wait_abort(self, running, callback):
-        """
-        Wait for the end of a list of aborted (cancelled) workflows before
-        starting a new one when the policy is 'abort-running'.
-
-        XXX: we shouldn't find policy-specific code in the engine! Find a
-        better way to do it.
-        """
-        # Always act on a snapshot of the original running list. Don't forget
-        # it is a living list!
-        others = list(running)
-        await asyncio.wait(others)
-        callback()
 
     async def run_once(self, template, data):
         """

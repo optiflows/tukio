@@ -125,12 +125,10 @@ class OverrunPolicyHandler:
 
     def new_workflow(self, running=None):
         method = getattr(self, '_' + self.policy.name)
-        return method(running)
+        return method(running or [])
 
     def _check_wflow(self, wflow):
-        if wflow.template.uid != self.template.uid:
-            err = 'expected template ID {}'', got {}'
-            raise ValueError(err.format(self.template.uid, wflow.template.uid))
+        return wflow.template.uid == self.template.uid
 
     def _new_wflow(self):
         return Workflow(self.template, loop=self._loop)
@@ -140,12 +138,10 @@ class OverrunPolicyHandler:
         Run a new instance of workflow only if there's no instance already
         running with the same template ID.
         """
-        if running:
-            for wflow in running:
-                self._check_wflow(wflow)
-            return None
-        else:
-            return self._new_wflow()
+        for instance in running:
+            if self._check_wflow(instance):
+                return None
+        return self._new_wflow()
 
     def _start_new(self, _):
         """
@@ -159,26 +155,20 @@ class OverrunPolicyHandler:
         running have been unlocked. Refer to the `Workflow` docstring for more
         details about locked/unlocked workflows.
         """
-        if running:
-            for wflow in running:
-                self._check_wflow(wflow)
-                if wflow.lock.locked():
-                    break
-            else:
-                return self._new_wflow()
-            # There's at least 1 locked workflow instance
-            return None
-        else:
-            return self._new_wflow()
+        for instance in running:
+            if self._check_wflow(instance):
+                if instance.lock.locked():
+                    # There's at least 1 locked workflow instance
+                    return None
+        return self._new_wflow()
 
     def _abort_running(self, running):
         """
         Abort all running instances of the workflow before creating a new one.
         """
-        if running:
-            for wflow in running:
-                self._check_wflow(wflow)
-                wflow.cancel()
+        for instance in running:
+            if self._check_wflow(instance):
+                instance.cancel()
         return self._new_wflow()
 
 
