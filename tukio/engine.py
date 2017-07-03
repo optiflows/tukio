@@ -158,9 +158,9 @@ class Engine(asyncio.Future):
         try:
             wflow.result()
         except asyncio.CancelledError:
-            log.warning('workflow %s has been cancelled', wflow)
+            log.info('Workflow %s has been cancelled', wflow.uid[:8])
         except Exception as exc:
-            log.warning('workflow %s ended on exception', wflow)
+            log.warning('Workflow %s ended on exception', wflow.uid[:8])
             log.exception(exc)
 
         if self._must_stop and not self._instances and not self.done():
