@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from copy import copy
+from enum import Enum
 from datetime import datetime, timezone
 
 from .holder import TaskHolder
@@ -8,6 +9,13 @@ from .task import register
 
 
 log = logging.getLogger(__name__)
+
+
+class JoinStatus(Enum):
+
+    RUNNING = 'running'
+    TIMEOUT = 'timeout'
+    DONE = 'done'
 
 
 @register('join', 'execute')
@@ -32,7 +40,7 @@ class JoinTask(TaskHolder):
 
         # Reporting
         self._task = None
-        self._report = {'tasks': [], 'status': 'running'}
+        self._report = {'tasks': [], 'status': JoinStatus.RUNNING.value}
 
     def report(self):
         return self._report
@@ -74,15 +82,17 @@ class JoinTask(TaskHolder):
         # Trigger first step for this event
         self._step(event)
         data = event.data
+        data['timeout'] = False
         try:
             await asyncio.wait_for(self._wait_for_tasks(), self._timeout)
         except asyncio.TimeoutError:
             log.warning("Join timed out, still waiting for %s", self._wait_for)
-            self._report['status'] = 'timeout'
+            self._report['status'] = JoinStatus.TIMEOUT.value
+            data['timeout'] = True
             self._task.dispatch_progress(self._report)
         else:
             log.debug('All awaited parents joined')
-            self._report['status'] = 'done'
+            self._report['status'] = JoinStatus.DONE.value
             self._task.dispatch_progress(self._report)
         # Data contains the outputs of the first task to join
         # Variable `data_stash` contains a list of all parent tasks outputs
