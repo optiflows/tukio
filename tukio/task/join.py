@@ -27,7 +27,7 @@ class JoinTask(TaskHolder):
     The `wait_for` config parameter is mandatory and is a list of task IDs.
     """
 
-    __slots__ = ('_data_stash', '_wait_for', '_timeout', '_report', '_task')
+    __slots__ = ('_data_stash', '_wait_for', '_report', '_task')
 
     def __init__(self, config):
         super().__init__(config)
@@ -35,8 +35,6 @@ class JoinTask(TaskHolder):
         # Must be either a number of tasks or a list of ids
         # Copy because we alter the list/int during `_step`
         self._wait_for = copy(self.config['wait_for'])
-        # Default timeout to avoid infinite wait
-        self._timeout = self.config.get('timeout')
 
         # Reporting
         self._task = None
@@ -74,10 +72,7 @@ class JoinTask(TaskHolder):
                 return
 
     async def execute(self, event):
-        log.info(
-            'Join task waiting for tasks (%s) (timeout: %s)',
-            self._wait_for, self._timeout
-        )
+        log.info('Join task waiting for tasks (%s)', self._wait_for)
         self._task = asyncio.Task.current_task()
         # Trigger first step for this event
         self._step(event)

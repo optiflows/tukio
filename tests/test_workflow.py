@@ -33,6 +33,13 @@ class CancelTask(TaskHolder):
         await asyncio.sleep(1.0)
 
 
+@register('sleep', 'execute')
+class SleepTask(TaskHolder):
+
+    async def execute(self, event):
+        await asyncio.sleep(1.0)
+
+
 TEMPLATES = {
     'ok': {
         'title': 'ok',
@@ -78,6 +85,11 @@ TEMPLATES = {
             '3': [],
             '4': [],
         }
+    },
+    'timeout': {
+        'title': 'timeout',
+        'tasks': [{'id': '1', 'name': 'sleep', 'timeout': 0.1}],
+        'graph': {'1': []}
     },
 }
 
@@ -168,4 +180,19 @@ class TestWorkflow(TestCase):
             for tid in ('2', '3', '4'):
                 task = wflow._tasks_by_id.get(tid)
                 self.assertIs(task, None)
+        self.loop.run_until_complete(test())
+
+    def test_task_timeout(self):
+        async def test():
+            tmpl = TEMPLATES['timeout']
+            wflow = Workflow(WorkflowTemplate.from_dict(tmpl))
+            wflow.run({'initial': 'data'})
+            # Workflow is OK
+            await wflow
+            self.assertEqual(FutureState.get(wflow), FutureState.finished)
+            # This task has timed out
+            task = wflow._tasks_by_id.get('1')
+            with self.assertRaises(asyncio.CancelledError):
+                task.exception()
+            self.assertEqual(FutureState.get(task), FutureState.timeout)
         self.loop.run_until_complete(test())

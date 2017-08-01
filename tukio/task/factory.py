@@ -18,15 +18,23 @@ log = logging.getLogger(__name__)
 
 class TaskExecState(Enum):
 
-    begin = 'task-begin'
-    end = 'task-end'
-    error = 'task-error'
-    skip = 'task-skip'
-    progress = 'task-progress'
+    BEGIN = 'task-begin'
+    END = 'task-end'
+    ERROR = 'task-error'
+    SKIP = 'task-skip'
+    PROGRESS = 'task-progress'
+    TIMEOUT = 'task-timeout'
 
     @classmethod
     def values(cls):
         return [member.value for member in cls]
+
+    @classmethod
+    def from_exception(cls, exc):
+        if isinstance(exc, SkipTask):
+            return cls.SKIP
+        else:
+            return cls.ERROR
 
 
 class TukioTaskError(Exception):
@@ -45,7 +53,7 @@ class TukioTask(asyncio.Task):
     __slots__ = (
         'holder', 'uid', '_broker', '_in_progress', '_template', '_workflow',
         '_source', '_start', '_end', '_inputs', '_outputs', '_queue',
-        '_commited',
+        '_commited', '_timed_out',
     )
 
     def __init__(self, coro, *, loop=None):
@@ -70,6 +78,7 @@ class TukioTask(asyncio.Task):
         # A 'committed' task is a pending task not suspended
         self._committed = asyncio.Event()
         self._committed.set()
+        self._timed_out = False
 
     @property
     def inputs(self):
@@ -79,6 +88,10 @@ class TukioTask(asyncio.Task):
     def inputs(self, data):
         # Freeze input data (dict or event)
         self._inputs = copy(data)
+
+    @property
+    def outputs(self):
+        return self._outputs
 
     @property
     def template(self):
@@ -99,6 +112,21 @@ class TukioTask(asyncio.Task):
     @property
     def committed(self):
         return self._committed.is_set()
+
+    @property
+    def timed_out(self):
+        return self._timed_out
+
+    async def timeout(self):
+        """
+        Timeout the task, cancelling its execution.
+        """
+        self.cancel()
+        self._timed_out = True
+        if self.holder:
+            self._outputs = await self.holder.teardown() or self._inputs
+        else:
+            self._outputs = self._inputs
 
     def suspend(self):
         """
@@ -141,23 +169,32 @@ class TukioTask(asyncio.Task):
     def result(self):
         """
         Wrapper around `Future.result()` to automatically dispatch a
-        `TaskExecState.end` or `TaskExecState.error` event.
+        `TaskExecState.END` or `TaskExecState.ERROR` event.
         """
         try:
             result = super().result()
+        except asyncio.CancelledError:
+            # Task cancelled, do nothing
+            if self._timed_out is False:
+                raise
+            # Task timed out
+            self._end = datetime.now(timezone.utc)
+            self._broker.dispatch(
+                {'type': TaskExecState.TIMEOUT.value, 'content': self._outputs},
+                topics=workflow_exec_topics(self._source._workflow_exec_id),
+                source=self._source,
+            )
+            raise asyncio.TimeoutError
         except Exception as exc:
             self._end = datetime.now(timezone.utc)
-            if isinstance(exc, SkipTask):
-                etype = TaskExecState.skip
-            else:
-                etype = TaskExecState.error
+            etype = TaskExecState.from_exception(exc)
             if isinstance(exc, TukioTaskError):
                 content = exc.task_outputs
                 self._outputs = content
             else:
                 content = {'exception': exc}
             self._broker.dispatch(
-                {'type': etype.value, 'content': content},
+                {'type': etype, 'content': content},
                 topics=workflow_exec_topics(self._source._workflow_exec_id),
                 source=self._source,
             )
@@ -167,7 +204,7 @@ class TukioTask(asyncio.Task):
             self._outputs = copy(result)
             self._end = datetime.now(timezone.utc)
             self._broker.dispatch(
-                {'type': TaskExecState.end.value, 'content': self._outputs},
+                {'type': TaskExecState.END.value, 'content': self._outputs},
                 topics=workflow_exec_topics(self._source._workflow_exec_id),
                 source=self._source,
             )
@@ -179,7 +216,7 @@ class TukioTask(asyncio.Task):
         this tukio task.
         """
         if event_type is None:
-            event_type = TaskExecState.progress.value
+            event_type = TaskExecState.PROGRESS.value
         event_data = {'type': event_type, 'content': data}
         self._broker.dispatch(
             event_data,
@@ -190,7 +227,7 @@ class TukioTask(asyncio.Task):
     def _step(self, exc=None):
         """
         Wrapper around `Task._step()` to automatically dispatch a
-        `TaskExecState.begin` event.
+        `TaskExecState.BEGIN` event.
         """
         if not self._in_progress:
             self._start = datetime.now(timezone.utc)
@@ -203,7 +240,7 @@ class TukioTask(asyncio.Task):
             self._source = EventSource(**source)
             self._in_progress = True
             data = {
-                'type': TaskExecState.begin.value,
+                'type': TaskExecState.BEGIN.value,
                 'content': self._inputs
             }
             self._broker.dispatch(

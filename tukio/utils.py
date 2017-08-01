@@ -1,3 +1,4 @@
+import asyncio
 from enum import Enum
 
 
@@ -26,6 +27,7 @@ class FutureState(Enum):
     finished = 'finished'
     skipped = 'skipped'
     suspended = 'suspended'
+    timeout = 'timeout'
 
     @classmethod
     def get(cls, future):
@@ -37,6 +39,8 @@ class FutureState(Enum):
         if not future.done():
             return cls.pending
         if future.cancelled():
+            if hasattr(future, 'timed_out') and future.timed_out is True:
+                return cls.timeout
             return cls.cancelled
         if future._exception:
             if isinstance(future._exception, SkipTask):
@@ -45,7 +49,9 @@ class FutureState(Enum):
         return cls.finished
 
     def done(self):
-        return self in (self.finished, self.skipped, self.exception)
+        return self in (
+            self.finished, self.skipped, self.exception, self.timeout
+        )
 
 
 class Listen(Enum):

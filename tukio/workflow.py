@@ -411,7 +411,7 @@ class Workflow(asyncio.Future):
     __slots__ = (
         'uid', '_template', '_start', '_end', 'tasks', '_tasks_by_id',
         '_updated_next_tasks', '_done_tasks', '_internal_exc', '_must_cancel',
-        'lock', '_broker', '_source', '_committed',
+        'lock', '_broker', '_source', '_committed', '_timed_out',
     )
 
     @classmethod
@@ -460,6 +460,7 @@ class Workflow(asyncio.Future):
         )
         # A 'committed' workflow is a pending workflow not suspended
         self._committed = asyncio.Event()
+        self._timed_out = False
 
     @property
     def template(self):
@@ -472,6 +473,10 @@ class Workflow(asyncio.Future):
     @property
     def committed(self):
         return self._committed.is_set()
+
+    @property
+    def timed_out(self):
+        return self._timed_out
 
     @_current_workflow
     def _unlock(self, _):
@@ -660,9 +665,20 @@ class Workflow(asyncio.Future):
             # If the task has been skipped, we just forward the previous task
             # inputs to the next one.
             result = task.inputs
-            log.warning('Task %s has been skipped', task.template)
+            log.info(
+                'Task execution %s has been skipped (%s)',
+                task.uid[:8], task.template,
+            )
+        except asyncio.TimeoutError:
+            # Task timed out, go on with the workflow
+            result = task.outputs
+            log.info(
+                'Task execution %s has timed out (%s)',
+                task.uid[:8], task.template,
+            )
         except asyncio.CancelledError:
-            log.warning('Task %s has been cancelled', task.template)
+            # Workflow cancelled
+            log.info('Task %s has been cancelled', task.template)
             self._try_mark_done()
             return
         except TukioTaskError as exc:
@@ -846,6 +862,10 @@ class Workflow(asyncio.Future):
             # the last task will end the workflow already set as _must_cancel
             super().cancel()
         return True
+
+    def timeout(self):
+        self.cancel()
+        self._timed_out = True
 
     def __str__(self):
         """

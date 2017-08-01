@@ -79,7 +79,38 @@ def register(task_name, coro_name=None):
     return decorator
 
 
-def new_task(task_name, *, data=None, config=None, loop=None):
+class TimeoutHandle:
+
+    """
+    Register a timeout on a given task to cancel its execution.
+    This does not rely on the creation of a new task (except when the
+    timeout is actually fired).
+    """
+
+    __slots__ = ('task', 'timeout', 'handle')
+
+    def __init__(self, task, timeout):
+        self.task = task
+        self.timeout = timeout
+        self.handle = None
+
+    async def _timeout_task(self):
+        await self.task.timeout()
+        self.handle = None
+
+    def _end_task(self, future):
+        if self.handle is not None:
+            self.handle.cancel()
+            self.handle = None
+
+    def start(self):
+        self.task.add_done_callback(self._end_task)
+        self.handle = self.task._loop.call_later(
+            self.timeout, asyncio.ensure_future, self._timeout_task()
+        )
+
+
+def new_task(task_name, *, data=None, config=None, timeout=None, loop=None):
     """
     Schedules the execution of the coroutine registered as `task_name` (either
     defined in a task holder class or not) in the loop and returns an instance
@@ -91,4 +122,9 @@ def new_task(task_name, *, data=None, config=None, loop=None):
         coro = coro_fn(task_holder, data)
     else:
         coro = coro_fn(data)
-    return asyncio.ensure_future(coro, loop=loop)
+
+    task = asyncio.ensure_future(coro, loop=loop)
+    if timeout:
+        TimeoutHandle(task, timeout).start()
+
+    return task

@@ -7,6 +7,7 @@ import logging
 from tukio.workflow import OverrunPolicy, new_workflow, Workflow
 from tukio.broker import get_broker
 from tukio.task import tukio_factory
+from tukio.task.task import TimeoutHandle
 from tukio.utils import Listen
 from tukio.event import Event
 
@@ -248,7 +249,7 @@ class Engine(asyncio.Future):
                     wflows.append(wflow)
         return wflows
 
-    async def trigger(self, template_id, data):
+    async def trigger(self, template_id, data, timeout=None):
         """
         Trigger a new execution of the workflow template identified by
         `template_id`. Use this method instead of a reserved topic +
@@ -262,9 +263,9 @@ class Engine(asyncio.Future):
                 template = self._selector.get(template_id)
             if not template:
                 return None
-            return self._try_run(template, Event(data))
+            return self._try_run(template, Event(data), timeout=timeout)
 
-    def _do_run(self, wflow, event):
+    def _do_run(self, wflow, event, timeout=None):
         """
         A workflow instance must be in the list of running instances until
         it completes.
@@ -272,8 +273,10 @@ class Engine(asyncio.Future):
         self._add_wflow(wflow)
         wflow.add_done_callback(self._remove_wflow)
         wflow.run(event)
+        if timeout:
+            TimeoutHandle(wflow, timeout).start()
 
-    def _try_run(self, template, event):
+    def _try_run(self, template, event, timeout=None):
         """
         Try to run a new instance of workflow according to the instances
         already running and the overrun policy.
@@ -284,7 +287,7 @@ class Engine(asyncio.Future):
             return
         # Always apply the policy of the current workflow template (workflow
         # instances may run with another version of the template)
-        wflow = new_workflow(template, running=self._instances, loop=self._loop)
+        wflow = new_workflow(template, running=self._instances,loop=self._loop)
         if wflow:
             if template.policy == OverrunPolicy.abort_running:
                 others = [
@@ -293,16 +296,16 @@ class Engine(asyncio.Future):
                 ]
                 if others:
                     def cb(f):
-                        self._do_run(wflow, event)
+                        self._do_run(wflow, event, timeout=timeout)
                     others_done = asyncio.ensure_future(asyncio.wait(others))
                     others_done.add_done_callback(cb)
                     return wflow
-            self._do_run(wflow, event)
+            self._do_run(wflow, event, timeout=timeout)
         else:
             log.debug("skip new workflow from %s (overrun policy)", template)
         return wflow
 
-    async def run_once(self, template, data):
+    async def run_once(self, template, data, timeout=None):
         """
         Starts a new execution of the workflow template regardless of the
         overrun policy and already running workflows.
@@ -314,7 +317,7 @@ class Engine(asyncio.Future):
             return None
         with await self._lock:
             wflow = Workflow(template, loop=self._loop)
-            self._do_run(wflow, Event(data))
+            self._do_run(wflow, Event(data), timeout=timeout)
         return wflow
 
     async def rescue(self, template, report):

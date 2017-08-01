@@ -18,12 +18,13 @@ class TaskTemplate:
     `asyncio.Task`) and provide execution report.
     """
 
-    __slots__ = ('name', 'config', 'topics', 'uid')
+    __slots__ = ('name', 'config', 'topics', 'timeout', 'uid')
 
-    def __init__(self, name, uid=None, config=None, topics=[]):
+    def __init__(self, name, uid=None, config=None, timeout=None, topics=[]):
         self.name = name
         self.config = config or {}
         self.topics = topics
+        self.timeout = timeout
         self.uid = uid or str(uuid4())
 
     @property
@@ -34,7 +35,13 @@ class TaskTemplate:
         """
         Create a new asyncio task from the current task template.
         """
-        task = new_task(self.name, data=data, config=self.config, loop=loop)
+        task = new_task(
+            self.name,
+            data=data,
+            config=self.config,
+            timeout=self.timeout,
+            loop=loop,
+        )
         task._template = self
         task.inputs = data.data if isinstance(data, Event) else data
         return task
@@ -69,7 +76,8 @@ class TaskTemplate:
         name = task_dict['name']
         config = task_dict.get('config', {})
         topics = task_dict.get('topics', [])
-        return cls(name, uid=uid, config=config, topics=topics)
+        timeout = task_dict.get('timeout')
+        return cls(name, uid=uid, config=config, timeout=timeout, topics=topics)
 
     def as_dict(self):
         """
@@ -77,9 +85,13 @@ class TaskTemplate:
         task template is linked to a task execution object, the dictionary
         contains the execution (stored at key 'exec').
         """
-        task_dict = {"name": self.name, "id": self.uid}
-        task_dict.update({"config": self.config, "topics": self.topics})
+        task_dict = {'name': self.name, 'id': self.uid}
+        task_dict.update({
+            'config': self.config,
+            'timeout': self.timeout,
+            'topics': self.topics,
+        })
         return task_dict
 
     def __str__(self):
-        return "<TaskTemplate name={}, uid={}>".format(self.name, self.uid)
+        return '<TaskTemplate name={}, uid={}>'.format(self.name, self.uid)

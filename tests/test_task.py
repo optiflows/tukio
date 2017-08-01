@@ -621,9 +621,10 @@ class TestTaskTemplate(unittest.TestCase):
         task_tmpl.topics = ['my-topic']
 
         expected_dict = {
-            "name": "my-task-holder",
-            "topics": ["my-topic"],
-            "config": {'hello': 'world'}
+            'name': 'my-task-holder',
+            'timeout': None,
+            'topics': ['my-topic'],
+            'config': {'hello': 'world'}
         }
 
         task_dict = task_tmpl.as_dict()
