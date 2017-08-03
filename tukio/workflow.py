@@ -558,6 +558,8 @@ class Workflow(asyncio.Future):
             task = None
         else:
             # Automatically wrap input data into an event object
+            if isinstance(event, dict):
+                event = Event(event)
             self._dispatch_exec_event(WorkflowExecState.begin, copy(event))
             task = self._new_task(root_tmpl, event)
             self._start = datetime.now(timezone.utc)
@@ -674,6 +676,10 @@ class Workflow(asyncio.Future):
             log.exception(exc)
             self._try_mark_done()
             return
+        finally:
+            # Ensure the result is not None (task ended without a return)
+            if result is None:
+                result = task.inputs
 
         # Ensure the workflow is not suspended, else wait for a resume.
         try:
@@ -700,9 +706,18 @@ class Workflow(asyncio.Future):
                     continue
                 # Downstream task already running, join it!
                 self._join_task(next_task, event)
+                continue
+
             # Create new task
-            else:
+            try:
                 next_task = self._new_task(tmpl, event)
+            except Exception as exc:
+                # Something wrong happened during the task instantiation.
+                # We log the exception and move on since we can't decide
+                # what to do at this point.
+                log.exception(exc)
+                continue
+
             if not next_task:
                 break
 
