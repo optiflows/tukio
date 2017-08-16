@@ -676,10 +676,10 @@ class Workflow(asyncio.Future):
             log.exception(exc)
             self._try_mark_done()
             return
-        finally:
-            # Ensure the result is not None (task ended without a return)
-            if result is None:
-                result = task.inputs
+
+        # Ensure the result is not None (task ended without a return)
+        if result is None:
+            result = task.inputs
 
         # Ensure the workflow is not suspended, else wait for a resume.
         try:
