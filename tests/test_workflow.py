@@ -86,7 +86,13 @@ TEMPLATES = {
             '4': [],
         }
     },
-    'timeout': {
+    'workflow_timeout': {
+        'title': 'timeout',
+        'timeout': 0.1,
+        'tasks': [{'id': '1', 'name': 'sleep'}],
+        'graph': {'1': []}
+    },
+    'task_timeout': {
         'title': 'timeout',
         'tasks': [{'id': '1', 'name': 'sleep', 'timeout': 0.1}],
         'graph': {'1': []}
@@ -182,15 +188,31 @@ class TestWorkflow(TestCase):
                 self.assertIs(task, None)
         self.loop.run_until_complete(test())
 
-    def test_task_timeout(self):
+    def test_workflow_timeout(self):
         async def test():
-            tmpl = TEMPLATES['timeout']
+            tmpl = TEMPLATES['workflow_timeout']
             wflow = Workflow(WorkflowTemplate.from_dict(tmpl))
             wflow.run({'initial': 'data'})
-            # Workflow is OK
+            # The workflow times out
+            with self.assertRaises(asyncio.CancelledError):
+                await wflow
+            self.assertEqual(FutureState.get(wflow), FutureState.timeout)
+            # The task has been cancelled
+            task = wflow._tasks_by_id.get('1')
+            with self.assertRaises(asyncio.CancelledError):
+                task.exception()
+            self.assertEqual(FutureState.get(task), FutureState.cancelled)
+        self.loop.run_until_complete(test())
+
+    def test_task_timeout(self):
+        async def test():
+            tmpl = TEMPLATES['task_timeout']
+            wflow = Workflow(WorkflowTemplate.from_dict(tmpl))
+            wflow.run({'initial': 'data'})
+            # The workflow is OK
             await wflow
             self.assertEqual(FutureState.get(wflow), FutureState.finished)
-            # This task has timed out
+            # The task has timed out
             task = wflow._tasks_by_id.get('1')
             with self.assertRaises(asyncio.CancelledError):
                 task.exception()

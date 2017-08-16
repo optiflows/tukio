@@ -12,7 +12,8 @@ from tukio.utils import FutureState, Listen, SkipTask
 from tukio.broker import get_broker, workflow_exec_topics
 from tukio.event import Event, EventSource
 from tukio.task import (
-    TaskTemplate, TaskRegistry, UnknownTaskName, TukioTask, TukioTaskError
+    TaskTemplate, TaskRegistry, UnknownTaskName, TukioTask, TukioTaskError,
+    TimeoutHandle,
 )
 
 
@@ -181,13 +182,14 @@ class WorkflowTemplate:
     It provides an API to easily build and update a consistent workflow.
     """
 
-    __slots__ = ('uid', 'topics', 'policy', 'dag')
+    __slots__ = ('uid', 'topics', 'policy', 'dag', 'timeout')
 
-    def __init__(self, uid=None, policy=None, topics=None):
+    def __init__(self, uid=None, policy=None, topics=None, timeout=None):
         self.uid = uid or str(uuid4())
         self.topics = topics
         self.policy = OverrunPolicy.get(policy)
         self.dag = DAG()
+        self.timeout = timeout
 
     @property
     def tasks(self):
@@ -249,6 +251,7 @@ class WorkflowTemplate:
                 "id": <workflow-uid>,
                 "topics": [<a-topic>, <another-topic>],
                 "policy": <policy>,
+                "timeout": <timeout>,
                 "tasks": [
                     {"id": <task-uid>, "name": <name>, "config": <cfg-dict>},
                     ...
@@ -276,7 +279,8 @@ class WorkflowTemplate:
         wf_tmpl = cls(
             uid=wf_dict.get('id'),
             policy=wf_dict.get('policy'),
-            topics=wf_dict.get('topics')
+            topics=wf_dict.get('topics'),
+            timeout=wf_dict.get('timeout'),
         )
 
         # Tasks
@@ -310,8 +314,9 @@ class WorkflowTemplate:
             'id': self.uid,
             'policy': self.policy.value,
             'topics': self.topics,
+            'timeout': self.timeout,
             'tasks': [],
-            'graph': {}
+            'graph': {},
         }
         for task_tmpl in self.tasks:
             wf_dict['tasks'].append(task_tmpl.as_dict())
@@ -571,6 +576,11 @@ class Workflow(asyncio.Future):
             # The workflow may fail to start at once
             if not task:
                 self._try_mark_done()
+
+        # Handle the workflow's timeout, if any.
+        if self._template.timeout:
+            TimeoutHandle(self, self._template.timeout).start()
+
         return task
 
     def _new_task(self, task_tmpl, event):
@@ -863,7 +873,7 @@ class Workflow(asyncio.Future):
             super().cancel()
         return True
 
-    def timeout(self):
+    async def timeout(self):
         self.cancel()
         self._timed_out = True
 
