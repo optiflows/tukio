@@ -17,10 +17,12 @@ class CrashTask(TaskHolder):
 
     def __init__(self, config):
         super().__init__(config)
-        raise Exception
+        # Crash here if the key is missing
+        config['init_ok']
 
     async def execute(self, event):
-        pass
+        # Or crash here
+        raise Exception
 
 
 @register('cancel', 'execute')
@@ -47,23 +49,23 @@ TEMPLATES = {
             '4': [],
         }
     },
-    'crash_init': {
-        'title': 'crash_init',
+    'crash_test': {
+        'title': 'crash_test',
         'tasks': [
-            {'id': '1', 'name': 'basic'},
             {'id': 'crash', 'name': 'crash'},
-            {'id': '3', 'name': 'basic'},
             {'id': 'wont_run', 'name': 'basic'},
+            {'id': '1', 'name': 'basic'},
+            {'id': '2', 'name': 'basic'},
         ],
         'graph': {
-            '1': ['crash', '3'],
+            '1': ['crash', '2'],
             'crash': ['wont_run'],
-            '3': [],
             'wont_run': [],
+            '2': [],
         }
     },
-    'cancel': {
-        'title': 'cancel',
+    'workflow_cancel': {
+        'title': 'workflow_cancel',
         'tasks': [
             {'id': 'cancel', 'name': 'cancel'},
             {'id': '2', 'name': 'basic'},
@@ -106,14 +108,15 @@ class TestWorkflow(TestCase):
             self.assertEqual(FutureState.get(wflow), FutureState.finished)
         self.loop.run_until_complete(test())
 
-    def test_workflow_task_crash_init(self):
+    def test_workflow_crash(self):
         async def test():
-            tmpl = TEMPLATES['crash_init']
+            tmpl = TEMPLATES['crash_test']
+            # Test crash at task __init__
             wflow = Workflow(WorkflowTemplate.from_dict(tmpl))
             wflow.run({'initial': 'data'})
             await wflow
             # These tasks have finished
-            for tid in ('1', '3'):
+            for tid in ('1', '2'):
                 task = wflow._tasks_by_id.get(tid)
                 self.assertTrue(task.done())
                 self.assertEqual(FutureState.get(task), FutureState.finished)
@@ -124,11 +127,32 @@ class TestWorkflow(TestCase):
             # The workflow finished properly
             self.assertTrue(wflow.done())
             self.assertEqual(FutureState.get(wflow), FutureState.finished)
+
+            # Test crash inside a task
+            tmpl['tasks'][0]['config'] = {'init_ok': None}
+            wflow = Workflow(WorkflowTemplate.from_dict(tmpl))
+            wflow.run({'initial': 'data'})
+            await wflow
+            # These tasks have finished
+            for tid in ('1', '2'):
+                task = wflow._tasks_by_id.get(tid)
+                self.assertTrue(task.done())
+                self.assertEqual(FutureState.get(task), FutureState.finished)
+            # This task crashed during execution
+            task = wflow._tasks_by_id.get('crash')
+            self.assertTrue(task.done())
+            self.assertEqual(FutureState.get(task), FutureState.exception)
+            # This task was never started
+            task = wflow._tasks_by_id.get('wont_run')
+            self.assertIs(task, None)
+            # The workflow finished properly
+            self.assertTrue(wflow.done())
+            self.assertEqual(FutureState.get(wflow), FutureState.finished)
         self.loop.run_until_complete(test())
 
     def test_workflow_cancel(self):
         async def test():
-            tmpl = TEMPLATES['cancel']
+            tmpl = TEMPLATES['workflow_cancel']
             wflow = Workflow(WorkflowTemplate.from_dict(tmpl))
             wflow.run({'initial': 'data'})
             # Workflow is cancelled
