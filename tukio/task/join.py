@@ -27,7 +27,7 @@ class JoinTask(TaskHolder):
     The `wait_for` config parameter is mandatory and is a list of task IDs.
     """
 
-    __slots__ = ('_data_stash', '_wait_for', '_report', '_task')
+    __slots__ = ('_data_stash', '_wait_for', '_report', '_task', 'data')
 
     def __init__(self, config):
         super().__init__(config)
@@ -38,6 +38,7 @@ class JoinTask(TaskHolder):
 
         # Reporting
         self._task = None
+        self.data = None
         self._report = {'tasks': [], 'status': JoinStatus.RUNNING.value}
 
     def report(self):
@@ -76,20 +77,18 @@ class JoinTask(TaskHolder):
         self._task = asyncio.Task.current_task()
         # Trigger first step for this event
         self._step(event)
-        data = event.data
-        data['timeout'] = False
-        try:
-            await asyncio.wait_for(self._wait_for_tasks(), self._timeout)
-        except asyncio.TimeoutError:
-            log.warning("Join timed out, still waiting for %s", self._wait_for)
-            self._report['status'] = JoinStatus.TIMEOUT.value
-            data['timeout'] = True
-            self._task.dispatch_progress(self._report)
-        else:
-            log.debug('All awaited parents joined')
-            self._report['status'] = JoinStatus.DONE.value
-            self._task.dispatch_progress(self._report)
+        self.data = event.data
+        await self._wait_for_tasks()
+        log.debug('All awaited parents joined')
+        self._report['status'] = JoinStatus.DONE.value
+        self._task.dispatch_progress(self._report)
         # Data contains the outputs of the first task to join
         # Variable `data_stash` contains a list of all parent tasks outputs
-        data['data_stash'] = self._data_stash
-        return data
+        self.data['data_stash'] = self._data_stash
+        return self.data
+
+    async def teardown(self):
+        self._report['status'] = JoinStatus.TIMEOUT.value
+        self._task.dispatch_progress(self._report)
+        self.data['data_stash'] = self._data_stash
+        return self.data
