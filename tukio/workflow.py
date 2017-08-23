@@ -60,12 +60,12 @@ class RescueError(WorkflowError):
 
 class WorkflowExecState(Enum):
 
-    begin = 'workflow-begin'
-    end = 'workflow-end'
-    error = 'workflow-error'
-    progress = 'workflow-progress'
-    suspend = 'workflow-suspend'
-    resume = 'workflow-resume'
+    BEGIN = 'workflow-begin'
+    END = 'workflow-end'
+    ERROR = 'workflow-error'
+    PROGRESS = 'workflow-progress'
+    SUSPEND = 'workflow-suspend'
+    RESUME = 'workflow-resume'
 
     @classmethod
     def values(cls):
@@ -570,7 +570,7 @@ class Workflow(asyncio.Future):
             # Automatically wrap input data into an event object
             if isinstance(event, dict):
                 event = Event(event)
-            self._dispatch_exec_event(WorkflowExecState.begin, copy(event))
+            self._dispatch_exec_event(WorkflowExecState.BEGIN, copy(event))
             task = self._new_task(root_tmpl, event)
             self._start = datetime.now(timezone.utc)
             # The workflow may fail to start at once
@@ -763,10 +763,10 @@ class Workflow(asyncio.Future):
         # done callback from another task executed in the same iteration of the
         # event loop.
         if self._all_tasks_done() and not self.done():
-            exec_event = WorkflowExecState.end
+            exec_event = WorkflowExecState.END
             if self._internal_exc:
                 self.set_exception(self._internal_exc)
-                exec_event = WorkflowExecState.error
+                exec_event = WorkflowExecState.ERROR
                 data = self._internal_exc
             elif self._must_cancel:
                 super().cancel()
@@ -833,7 +833,7 @@ class Workflow(asyncio.Future):
         for task in (self.tasks - self._done_tasks):
             task.suspend()
 
-        self._dispatch_exec_event(WorkflowExecState.suspend)
+        self._dispatch_exec_event(WorkflowExecState.SUSPEND)
         log.info('workflow %s has been suspended', self)
 
     def resume(self):
@@ -853,7 +853,7 @@ class Workflow(asyncio.Future):
             event = Event(task.inputs, source=task.event_source)
             self._new_task(task.template, event)
 
-        self._dispatch_exec_event(WorkflowExecState.resume)
+        self._dispatch_exec_event(WorkflowExecState.RESUME)
         log.info('workflow %s has been resumed', self)
 
     def cancel(self):
@@ -986,7 +986,7 @@ class Workflow(asyncio.Future):
                 event = Event(task_report['exec']['inputs'])
             self._new_task(task_template, event)
 
-        self._dispatch_exec_event(WorkflowExecState.begin)
+        self._dispatch_exec_event(WorkflowExecState.BEGIN)
 
 
 def new_workflow(wf_tmpl, running=None, loop=None):
