@@ -103,7 +103,7 @@ class _WorkflowSelector:
         Returns the workflow template with the given template ID. Raises a
         `KeyError` exception if no template is found.
         """
-        return self._templates[tmpl_id]
+        return self._templates.get(tmpl_id)
 
 
 class Engine(asyncio.Future):
@@ -117,11 +117,11 @@ class Engine(asyncio.Future):
     running workflows are done. Afterwards no new workflow can be triggered.
     """
 
-    def __init__(self, *, loop=None):
+    def __init__(self, *, selector=None, loop=None):
         super().__init__(loop=loop)
         # use the custom asyncio task factory
         self._loop.set_task_factory(tukio_factory)
-        self._selector = _WorkflowSelector()
+        self._selector = selector or _WorkflowSelector()
         self._instances = []
         self._broker = get_broker(self._loop)
         self._lock = asyncio.Lock()
@@ -181,16 +181,6 @@ class Engine(asyncio.Future):
                 log.debug('cancelled workflow %s', wflow)
         return self
 
-    def _run_in_task(self, callback, *args, **kwargs):
-        """
-        Wrap a regular function into a coroutine and run it in a task.
-        This is intended to wrap time consuming functions into a task so as to
-        prevent slow operations from blocking the whole loop.
-        """
-        async def coro():
-            return callback(*args, **kwargs)
-        return asyncio.ensure_future(coro(), loop=self._loop)
-
     def _load(self, template):
         """
         Loads a workflow template into the engine. Each workflow may be
@@ -208,7 +198,7 @@ class Engine(asyncio.Future):
         coroutines from updating the dict of loaded templates in the mean time.
         """
         with await self._lock:
-            await self._run_in_task(self._load, template)
+            self._load(template)
 
     async def reload(self, templates):
         """
@@ -218,7 +208,7 @@ class Engine(asyncio.Future):
         with await self._lock:
             self._selector.clear()
             for tmpl in templates:
-                await self._run_in_task(self._load, tmpl)
+                self._load(tmpl)
 
     async def unload(self, template_id):
         """
@@ -245,7 +235,10 @@ class Engine(asyncio.Future):
             log.debug("The engine is stopping, cannot trigger new workflows")
             return
         with await self._lock:
-            templates = self._selector.select(topic)
+            if asyncio.iscoroutinefunction(self._selector.select):
+                templates = await self._selector.select(topic)
+            else:
+                templates = self._selector.select(topic)
             # Try to trigger new workflows from the current dict of workflow
             # templates at all times!
             wflows = []
@@ -263,10 +256,11 @@ class Engine(asyncio.Future):
         """
         with await self._lock:
             # Ignore unknown (aka not loaded) workflow templates
-            try:
+            if asyncio.iscoroutinefunction(self._selector.get):
+                template = await self._selector.get(template_id)
+            else:
                 template = self._selector.get(template_id)
-            except KeyError:
-                log.error('workflow template %s not loaded', template_id)
+            if not template:
                 return None
             return self._try_run(template, Event(data))
 

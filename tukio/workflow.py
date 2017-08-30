@@ -324,7 +324,7 @@ class WorkflowTemplate:
         """
         Returns a copy of the current instance of workflow template.
         """
-        wf_tmpl = WorkflowTemplate(uid=self.uid)
+        wf_tmpl = self.__class__(uid=self.uid)
         wf_tmpl.dag = self.dag.copy()
         return wf_tmpl
 
