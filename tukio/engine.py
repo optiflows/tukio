@@ -100,8 +100,8 @@ class _WorkflowSelector:
 
     def get(self, tmpl_id):
         """
-        Returns the workflow template with the given template ID. Raises a
-        `KeyError` exception if no template is found.
+        Returns the workflow template with the given template ID, None if
+        no template is found.
         """
         return self._templates.get(tmpl_id)
 
