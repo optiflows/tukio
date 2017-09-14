@@ -51,10 +51,11 @@ The description of a workflow is pretty straighforward:
     "title": "workflow #1",
     "policy": "abort-running",
     "topics": ["abort"],
+    "timeout": 30,
     "tasks": [
         {"id": "f1", "name": "task1"},
         {"id": "f2", "name": "task2"},
-        {"id": "f3", "name": "task3"},
+        {"id": "f3", "name": "task3", "timeout": 10},
         {"id": "f4", "name": "task1"},
         {"id": "f5", "name": "task2"},
         {"id": "f6", "name": "task1", "config": {"value": 1}}
@@ -74,9 +75,12 @@ simple adjacency list that ties tasks together into a DAG (Directed Acyclic
 Graph). You must ensure there's only a single root task, otherwise the engine
 will raise an exception.
 
+Upon reaching the specified `timeout` (optional, infinite if `None`), the workflow will be cancelled. If it is a task, the task will be cancelled and Tukio will move on to the next tasks.
+
 ## How to use it?
 
 #### Register coroutines as tasks
+
 First you need to code and register your own tasks
 ```python
 from tukio.task import register
@@ -93,7 +97,7 @@ async def task2(event):
     return 'data from task2'
 ```
 
-#### Load you workflow description into the engine
+#### Load your workflow description into the engine
 
 Let's assume your 1st workflow is the following:
 ```python
