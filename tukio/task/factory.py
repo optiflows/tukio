@@ -194,7 +194,7 @@ class TukioTask(asyncio.Task):
             else:
                 content = {'exception': exc}
             self._broker.dispatch(
-                {'type': etype, 'content': content},
+                {'type': etype.value, 'content': content},
                 topics=workflow_exec_topics(self._source._workflow_exec_id),
                 source=self._source,
             )
