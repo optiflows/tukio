@@ -83,8 +83,7 @@ class TimeoutHandle:
 
     """
     Register a timeout on a given task to cancel its execution.
-    This does not rely on the creation of a new task (except when the
-    timeout is actually fired).
+    This does not rely on the creation of a new task.
     """
 
     __slots__ = ('task', 'timeout', 'handle')
@@ -94,8 +93,8 @@ class TimeoutHandle:
         self.timeout = timeout
         self.handle = None
 
-    async def _timeout_task(self):
-        await self.task.timeout()
+    def _timeout_task(self):
+        self.task.timeout()
         self.handle = None
 
     def _end_task(self, future):
@@ -106,7 +105,7 @@ class TimeoutHandle:
     def start(self):
         self.task.add_done_callback(self._end_task)
         self.handle = self.task._loop.call_later(
-            self.timeout, asyncio.ensure_future, self._timeout_task()
+            self.timeout, self._timeout_task
         )
 
 
@@ -126,5 +125,4 @@ def new_task(task_name, *, data=None, config=None, timeout=None, loop=None):
     task = asyncio.ensure_future(coro, loop=loop)
     if timeout:
         TimeoutHandle(task, timeout).start()
-
     return task

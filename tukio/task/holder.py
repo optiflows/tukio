@@ -60,9 +60,9 @@ class TaskHolder:
         execution of a task.
         """
 
-    async def teardown(self):
+    def teardown(self):
         """
-        This method will be async called right after a Tukio task cancellation,
+        This method will be called right after a Tukio task cancellation,
         and it is intended to perform any ultimate actions (like cleanups)
         before loosing the task reference.
         """
