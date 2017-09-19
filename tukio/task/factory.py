@@ -123,10 +123,6 @@ class TukioTask(asyncio.Task):
         """
         self.cancel()
         self._timed_out = True
-        if self.holder:
-            self._outputs = self.holder.teardown() or self._inputs
-        else:
-            self._outputs = self._inputs
 
     def suspend(self):
         """
@@ -174,10 +170,15 @@ class TukioTask(asyncio.Task):
         try:
             result = super().result()
         except asyncio.CancelledError:
-            # Task cancelled, do nothing
+            # The task was cancelled, simply raise it.
             if self._timed_out is False:
                 raise
-            # Task timed out
+            # The task timed out, fetch the outputs and raise a TimeoutError.
+            if self.holder:
+                self._outputs = self.holder.teardown()
+            # If teardown did not return anything, return inputs.
+            if self._outputs is None:
+                self._outputs = self._inputs
             self._end = datetime.now(timezone.utc)
             self._broker.dispatch(
                 {'type': TaskExecState.TIMEOUT.value, 'content': self._outputs},
