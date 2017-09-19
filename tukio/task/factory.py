@@ -121,12 +121,13 @@ class TukioTask(asyncio.Task):
         """
         Timeout the task, cancelling its execution.
         """
-        self.cancel()
-        self._timed_out = True
         if self.holder:
             self._outputs = await self.holder.teardown() or self._inputs
         else:
             self._outputs = self._inputs
+        # Cancel after retrieving the task's outputs.
+        self.cancel()
+        self._timed_out = True
 
     def suspend(self):
         """
