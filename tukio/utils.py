@@ -81,3 +81,33 @@ class Listen(Enum):
             return cls.topics
         else:
             raise TypeError("'{}' is not a list".format(topics))
+
+
+class TimeoutHandle:
+
+    """
+    Register a timeout on a given task to cancel its execution.
+    This does not rely on the creation of a new task.
+    """
+
+    __slots__ = ('task', 'timeout', 'handle')
+
+    def __init__(self, task, timeout):
+        self.task = task
+        self.timeout = timeout
+        self.handle = None
+
+    def _timeout_task(self):
+        self.task.timeout()
+        self.handle = None
+
+    def _end_task(self, future):
+        if self.handle is not None:
+            self.handle.cancel()
+            self.handle = None
+
+    def start(self):
+        self.task.add_done_callback(self._end_task)
+        self.handle = self.task._loop.call_later(
+            self.timeout, self._timeout_task
+        )

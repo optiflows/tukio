@@ -8,12 +8,11 @@ from uuid import uuid4
 from datetime import datetime, timezone
 
 from tukio.dag import DAG
-from tukio.utils import FutureState, Listen, SkipTask
+from tukio.utils import FutureState, Listen, SkipTask, TimeoutHandle
 from tukio.broker import get_broker, workflow_exec_topics
 from tukio.event import Event, EventSource
 from tukio.task import (
     TaskTemplate, TaskRegistry, UnknownTaskName, TukioTask, TukioTaskError,
-    TimeoutHandle,
 )
 
 
@@ -800,7 +799,7 @@ class Workflow(asyncio.Future):
             if is_cancelled:
                 cancelled += 1
                 try:
-                    asyncio.ensure_future(task.holder.teardown())
+                    task.holder.teardown()
                 except AttributeError:
                     pass
         return cancelled
@@ -873,7 +872,11 @@ class Workflow(asyncio.Future):
             super().cancel()
         return True
 
-    async def timeout(self):
+    def timeout(self):
+        """
+        Called automatically after reaching the 'timeout' threshold,
+        if it exists for this workflow.
+        """
         self.cancel()
         self._timed_out = True
 
