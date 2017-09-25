@@ -87,7 +87,7 @@ class JoinTask(TaskHolder):
         self.data['data_stash'] = self._data_stash
         return self.data
 
-    async def teardown(self):
+    def teardown(self):
         self._report['status'] = JoinStatus.TIMEOUT.value
         self._task.dispatch_progress(self._report)
         self.data['data_stash'] = self._data_stash
