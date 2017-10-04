@@ -679,6 +679,8 @@ class Workflow(asyncio.Future):
                 task.uid[:8], task.template,
             )
         except asyncio.TimeoutError:
+            if task.timed_out is False:
+                raise
             # Task timed out, go on with the workflow
             result = task.outputs
             log.info(
