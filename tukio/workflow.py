@@ -912,7 +912,13 @@ class Workflow(asyncio.Future):
             task_dict['exec'] = task.as_dict()
             # If the task is linked to a task holder, try to use its own report
             if hasattr(task.holder, 'report'):
-                task_dict['exec']['reporting'] = task.holder.report()
+                try:
+                    task_dict['exec']['reporting'] = task.holder.report()
+                except Exception as exc:
+                    # Unexpected error from task reporting.
+                    log.error('Exception on task reporting: %s', exc)
+                    self._internal_exc = exc
+                    self._try_mark_done()
         return report
 
     def fast_forward(self, report):
