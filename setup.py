@@ -16,7 +16,7 @@ setup(
     description='An event-based workflow library built around asyncio',
     long_description=long_description,
     url='https://github.com/optiflows/tukio',
-    author='Optiflows R&D',
+    author='Enovacom Surycat',
     author_email='rand@surycat.com',
     version=version,
     packages=find_packages(exclude=['tests']),
@@ -27,6 +27,7 @@ setup(
         'Natural Language :: English',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3 :: Only',
     ],
 )
