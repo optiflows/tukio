@@ -81,20 +81,25 @@ Upon reaching the specified `timeout` (optional, infinite if `None`), the workfl
 
 #### Register coroutines as tasks
 
-First you need to code and register your own tasks
+First you need to code and register your own tasks:
+* `my-task1` will send a whole new event to underlaying tasks
+* `my-task2` will append data to it
+
 ```python
 from tukio.task import register
 
 @register('my-task1')
 async def task1(event):
-    print('hello from task1: {}'.format(event.data))
-    return 'data from task1'
-
+    tid = asyncio.Task.current_task().template.uid
+    print(f'In task1 ({tid}): {event.data}')
+    return {tid: 'data from task1'}
 
 @register('my-task2')
 async def task2(event):
-    print('hello from task2: {}'.format(event.data))
-    return 'data from task2'
+    tid = asyncio.Task.current_task().template.uid
+    print(f'In task2 ({tid}): {event.data}')
+    event.data[tid] = 'data from task2'
+    return event
 ```
 
 #### Load your workflow description into the engine
@@ -105,9 +110,9 @@ import tukio
 wf1 = {
     "title": "workflow #1",
     "tasks": [
-        {"id": "f1", "name": "my-task1"},
+        {"id": "f1", "name": "my-task2"},
         {"id": "f2", "name": "my-task2"},
-        {"id": "f3", "name": "my-task2"},
+        {"id": "f3", "name": "my-task1"},
         {"id": "f4", "name": "my-task1"},
         {"id": "f5", "name": "my-task2"},
         {"id": "f6", "name": "my-task1"}
@@ -136,19 +141,19 @@ loop.run_until_complete(engine.load(wf_tmpl))
 
 It's now time to run your 1st workflow:
 ```python
-wflows = loop.run_until_complete(engine.data_received('apple'))
+wflows = loop.run_until_complete(engine.data_received({'initial': 'data'}))
 # Wait for the end of the workflows triggered
 loop.run_until_complete(asyncio.wait(wflows))
 ```
 
 You've just run your 1st workflow with tukio and should get an output like this:
 ```
-hello from task1: apple
-hello from task2: data from task1
-hello from task1: data from task2
-hello from task2: data from task2
-hello from task1: data from task1
-hello from task2: data from task2
+In task2 (f1): {'initial': 'data'}
+In task2 (f2): {'initial': 'data', 'f1': 'data from task2'}
+In task1 (f3): {'initial': 'data', 'f1': 'data from task2', 'f2': 'data from task2'}
+In task1 (f4): {'initial': 'data', 'f1': 'data from task2', 'f2': 'data from task2'}
+In task2 (f5): {'f3': 'data from task1'}
+In task1 (f6): {'f4': 'data from task1'}
 ```
 
 ## Contributing
