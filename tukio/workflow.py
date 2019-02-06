@@ -181,14 +181,16 @@ class WorkflowTemplate:
     It provides an API to easily build and update a consistent workflow.
     """
 
-    __slots__ = ('uid', 'topics', 'policy', 'dag', 'timeout')
+    __slots__ = ('uid', 'topics', 'policy', 'dag', 'timeout', 'schema')
 
-    def __init__(self, uid=None, policy=None, topics=None, timeout=None):
+    def __init__(self, uid=None, policy=None, topics=None, timeout=None,
+                 schema=None):
         self.uid = uid or str(uuid4())
         self.topics = topics
         self.policy = OverrunPolicy.get(policy)
         self.dag = DAG()
         self.timeout = timeout
+        self.schema = schema or 1
 
     @property
     def tasks(self):
@@ -251,6 +253,7 @@ class WorkflowTemplate:
                 "topics": [<a-topic>, <another-topic>],
                 "policy": <policy>,
                 "timeout": <timeout>,
+                "schema": <int>,
                 "tasks": [
                     {"id": <task-uid>, "name": <name>, "config": <cfg-dict>},
                     ...
@@ -280,6 +283,7 @@ class WorkflowTemplate:
             policy=wf_dict.get('policy'),
             topics=wf_dict.get('topics'),
             timeout=wf_dict.get('timeout'),
+            schema=wf_dict.get('schema'),
         )
 
         # Tasks
@@ -314,6 +318,7 @@ class WorkflowTemplate:
             'policy': self.policy.value,
             'topics': self.topics,
             'timeout': self.timeout,
+            'schema': self.schema,
             'tasks': [],
             'graph': {},
         }

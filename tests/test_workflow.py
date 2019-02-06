@@ -110,6 +110,14 @@ class TestWorkflow(TestCase):
     def tearDown(self):
         self.loop.close()
 
+    def test_workflow_schema(self):
+        tmpl = TEMPLATES['ok']
+        template = WorkflowTemplate.from_dict(tmpl)
+        self.assertEqual(template.schema, 1)
+        tmpl['schema'] = 5
+        template = WorkflowTemplate.from_dict(tmpl)
+        self.assertEqual(template.schema, 5)
+
     def test_basic_workflow(self):
         async def test():
             tmpl = TEMPLATES['ok']
