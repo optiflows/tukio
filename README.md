@@ -1,6 +1,6 @@
 # Tukio
 
-[![Circle CI](https://img.shields.io/circleci/project/optiflows/tukio/master.svg)](https://circleci.com/gh/optiflows/tukio)
+[![Circle CI](https://img.shields.io/circleci/project/surycat/tukio/master.svg)](https://circleci.com/gh/surycat/tukio)
 [![pypi version](http://img.shields.io/pypi/v/tukio.svg)](https://pypi.python.org/pypi/tukio)
 [![python versions](https://img.shields.io/pypi/pyversions/tukio.svg)](https://pypi.python.org/pypi/tukio/)
 

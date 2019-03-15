@@ -15,7 +15,7 @@ setup(
     name='tukio',
     description='An event-based workflow library built around asyncio',
     long_description=long_description,
-    url='https://github.com/optiflows/tukio',
+    url='https://github.com/surycat/tukio',
     author='Enovacom Surycat',
     author_email='rand@surycat.com',
     version=version,

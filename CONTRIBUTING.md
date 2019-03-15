@@ -74,7 +74,7 @@ Tukio follows the classic GitHub's zen "fork-branch-PR" regarding patch submissi
     Then installing the library using the "[editable install](https://pip.pypa.io/en/stable/reference/pip_install/#editable-installs)" feature of `pip`:
 
     ```bash
-    (tukio) surycat$ git clone git@github.com:optiflows/tukio.git ~/sources/tukio
+    (tukio) surycat$ git clone git@github.com:surycat/tukio.git ~/sources/tukio
     (tukio) surycat$ pip install -e ~/sources/tukio
     ```
 
