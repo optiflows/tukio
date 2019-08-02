@@ -431,7 +431,7 @@ class Workflow(asyncio.Future):
         None is returned when called not in the context of a Workflow.
         """
         loop = loop or asyncio.get_event_loop()
-        task = asyncio.Task.current_task(loop)
+        task = asyncio.current_task(loop)
         workflow = None
         if task:
             workflow = _get_workflow_from_task(task)
@@ -502,7 +502,7 @@ class Workflow(asyncio.Future):
         Adds a done callback to the passed or current task so as to unlock the
         workflow when the task gets done.
         """
-        task = task or asyncio.Task.current_task()
+        task = task or asyncio.current_task()
         task.add_done_callback(self._unlock)
 
     def _register_to_broker(self, task_tmpl, task):
@@ -820,7 +820,7 @@ class Workflow(asyncio.Future):
         This method is intended to be called at runtime by the task itself.
         `task_tmpl_ids` must be a list (can be empty) of task template IDs.
         """
-        task = asyncio.Task.current_task(self._loop)
+        task = asyncio.current_task(self._loop)
         if task not in self.tasks:
             raise RuntimeError('task {} not executed by {}'.format(task, self))
         self._updated_next_tasks[task] = task_tmpl_ids

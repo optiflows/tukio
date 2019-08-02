@@ -174,7 +174,7 @@ class TopicManager:
         loop = cls._loop if isinstance(cls, TopicManager) else None
         if isinstance(cls, TopicManager):
             topic = cls._topic
-        coro = asyncio.Task.current_task(loop=loop).data_received
+        coro = asyncio.current_task(loop=loop).data_received
         get_broker(loop=loop).register(coro, topic=topic)
 
     def __enter__(self):
@@ -193,7 +193,7 @@ class TopicManager:
         loop = cls._loop if isinstance(cls, TopicManager) else None
         if isinstance(cls, TopicManager):
             topic = cls._topic
-        coro = asyncio.Task.current_task(loop=loop).data_received
+        coro = asyncio.current_task(loop=loop).data_received
         get_broker(loop=loop).unregister(coro, topic=topic)
 
     def __exit__(self, *exc):

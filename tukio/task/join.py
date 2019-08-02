@@ -74,7 +74,7 @@ class JoinTask(TaskHolder):
 
     async def execute(self, event):
         log.info('Join task waiting for tasks (%s)', self._wait_for)
-        self._task = asyncio.Task.current_task()
+        self._task = asyncio.current_task()
         # Trigger first step for this event
         self._step(event)
         self.data = event.data
