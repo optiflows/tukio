@@ -10,7 +10,6 @@ execution of Tukio tasks in an asyncio event loop.
 import asyncio
 import logging
 import inspect
-
 from tukio.utils import TimeoutHandle
 
 

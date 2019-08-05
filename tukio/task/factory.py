@@ -46,7 +46,7 @@ class TukioTaskError(Exception):
 class TukioTask(asyncio.Task):
 
     """
-    A subclass of `asyncio.Task()` to add an execution ID and optionally
+    A simple subclass of `asyncio.Task()` to add an execution ID and optionally
     bind a task holder class.
     """
 
@@ -64,10 +64,11 @@ class TukioTask(asyncio.Task):
         except AttributeError:
             self.uid = str(uuid4())
         self._broker = get_broker(self._loop)
-        self._in_progress = True
+        self._in_progress = False
         self._template = None
         self._workflow = None
-        self._start = datetime.now(timezone.utc)
+        self._source = None
+        self._start = None
         self._end = None
         self._inputs = None
         self._outputs = None
@@ -78,20 +79,6 @@ class TukioTask(asyncio.Task):
         self._committed = asyncio.Event()
         self._committed.set()
         self._timed_out = False
-
-        # Immediately report the beginning of this task
-        source = {'task_exec_id': self.uid}
-        if self._template:
-            source['task_template_id'] = self._template.uid
-        if self._workflow:
-            source['workflow_template_id'] = self._workflow.template.uid
-            source['workflow_exec_id'] = self._workflow.uid
-        self._source = EventSource(**source)
-        self._broker.dispatch(
-            {'type': TaskExecState.BEGIN.value, 'content': self._inputs},
-            topics=workflow_exec_topics(self._source._workflow_exec_id),
-            source=self._source,
-        )
 
     @property
     def inputs(self):
@@ -129,10 +116,6 @@ class TukioTask(asyncio.Task):
     @property
     def timed_out(self):
         return self._timed_out
-
-    @property
-    def in_progress(self):
-        return self._in_progress
 
     def timeout(self):
         """
@@ -172,6 +155,12 @@ class TukioTask(asyncio.Task):
         can receive and process events during execution.
         """
         await self._queue.put(event)
+
+    def in_progress(self):
+        """
+        Returns True if the task execution started, else returns False.
+        """
+        return self._in_progress
 
     def result(self):
         """
@@ -236,6 +225,32 @@ class TukioTask(asyncio.Task):
             source=self._source,
         )
 
+    def _step(self, exc=None):
+        """
+        Wrapper around `Task._step()` to automatically dispatch a
+        `TaskExecState.BEGIN` event.
+        """
+        if not self._in_progress:
+            self._start = datetime.now(timezone.utc)
+            source = {'task_exec_id': self.uid}
+            if self._template:
+                source['task_template_id'] = self._template.uid
+            if self._workflow:
+                source['workflow_template_id'] = self._workflow.template.uid
+                source['workflow_exec_id'] = self._workflow.uid
+            self._source = EventSource(**source)
+            self._in_progress = True
+            data = {
+                'type': TaskExecState.BEGIN.value,
+                'content': self._inputs
+            }
+            self._broker.dispatch(
+                data,
+                topics=workflow_exec_topics(self._source._workflow_exec_id),
+                source=self._source,
+            )
+        super()._step(exc)
+
 
 def tukio_factory(loop, coro):
     """
@@ -246,10 +261,9 @@ def tukio_factory(loop, coro):
     try:
         # Trigger exception if not valid
         TaskRegistry.codes()[coro.cr_code]
-    except (KeyError, AttributeError) as exc:
+        task = TukioTask(coro, loop=loop)
+    except (KeyError, AttributeError):
         # When the coroutine is not a registered Tukio task or when `coro` is a
         # simple generator (e.g. upon calling `asyncio.wait()`)
         task = asyncio.Task(coro, loop=loop)
-    else:
-        task = TukioTask(coro, loop=loop)
     return task
