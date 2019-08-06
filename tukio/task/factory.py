@@ -6,7 +6,7 @@ from enum import Enum
 from uuid import uuid4
 from datetime import datetime, timezone
 
-from tukio.event import EventSource
+from tukio.event import EventSource, Event
 from tukio.utils import FutureState, SkipTask
 from tukio.broker import get_broker, workflow_exec_topics
 
@@ -225,31 +225,28 @@ class TukioTask(asyncio.Task):
             source=self._source,
         )
 
-    def _step(self, exc=None):
-        """
-        Wrapper around `Task._step()` to automatically dispatch a
-        `TaskExecState.BEGIN` event.
-        """
-        if not self._in_progress:
-            self._start = datetime.now(timezone.utc)
-            source = {'task_exec_id': self.uid}
-            if self._template:
-                source['task_template_id'] = self._template.uid
-            if self._workflow:
-                source['workflow_template_id'] = self._workflow.template.uid
-                source['workflow_exec_id'] = self._workflow.uid
-            self._source = EventSource(**source)
-            self._in_progress = True
-            data = {
-                'type': TaskExecState.BEGIN.value,
-                'content': self._inputs
-            }
-            self._broker.dispatch(
-                data,
-                topics=workflow_exec_topics(self._source._workflow_exec_id),
-                source=self._source,
-            )
-        super()._step(exc)
+    def setup(self, workflow, template, data):
+        self._workflow = workflow
+        self._start = datetime.now(timezone.utc)
+        self._template = template
+        self.inputs = data.data if isinstance(data, Event) else data
+        source = {'task_exec_id': self.uid}
+        if self._template:
+            source['task_template_id'] = self._template.uid
+        if self._workflow:
+            source['workflow_template_id'] = self._workflow.template.uid
+            source['workflow_exec_id'] = self._workflow.uid
+        self._source = EventSource(**source)
+        self._in_progress = True
+        data = {
+            'type': TaskExecState.BEGIN.value,
+            'content': self._inputs
+        }
+        self._broker.dispatch(
+            data,
+            topics=workflow_exec_topics(self._source._workflow_exec_id),
+            source=self._source,
+        )
 
 
 def tukio_factory(loop, coro):
@@ -261,9 +258,10 @@ def tukio_factory(loop, coro):
     try:
         # Trigger exception if not valid
         TaskRegistry.codes()[coro.cr_code]
-        task = TukioTask(coro, loop=loop)
     except (KeyError, AttributeError):
         # When the coroutine is not a registered Tukio task or when `coro` is a
         # simple generator (e.g. upon calling `asyncio.wait()`)
         task = asyncio.Task(coro, loop=loop)
+    else:
+        task = TukioTask(coro, loop=loop)
     return task

@@ -2,7 +2,6 @@ import logging
 from uuid import uuid4
 
 from .task import new_task
-from tukio.event import Event
 from tukio.utils import Listen
 
 
@@ -31,20 +30,19 @@ class TaskTemplate:
     def listen(self):
         return Listen.get(self.topics)
 
-    def new_task(self, data, loop=None):
+    def new_task(self, workflow, data, loop=None):
         """
         Create a new asyncio task from the current task template.
         """
-        task = new_task(
+        return new_task(
+            workflow,
             self.name,
             data=data,
+            template=self,
             config=self.config,
             timeout=self.timeout,
             loop=loop,
         )
-        task._template = self
-        task.inputs = data.data if isinstance(data, Event) else data
-        return task
 
     @classmethod
     def from_dict(cls, task_dict):

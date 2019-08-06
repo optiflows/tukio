@@ -284,9 +284,9 @@ class Engine(asyncio.Future):
             return
         # Always apply the policy of the current workflow template (workflow
         # instances may run with another version of the template)
-        wflow = new_workflow(template, running=self._instances,loop=self._loop)
+        wflow = new_workflow(template, running=self._instances, loop=self._loop)
         if wflow:
-            if template.policy == OverrunPolicy.abort_running:
+            if template.policy == OverrunPolicy.ABORT_RUNNING:
                 others = [
                     i for i in self._instances
                     if i.template.uid == template.uid

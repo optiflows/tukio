@@ -83,13 +83,13 @@ class OverrunPolicy(Enum):
     """
 
     # Skip until all running instances are finished
-    skip = 'skip'
+    SKIP = 'skip'
     # Start a new workflow instance whatever the running instances
-    start_new = 'start-new'
+    START_NEW = 'start-new'
     # Skip until all running instances had been unlocked
-    skip_until_unlock = 'skip-until-unlock'
+    SKIP_UNTIL_UNLOCK = 'skip-until-unlock'
     # Abort all running instances before creating a new once
-    abort_running = 'abort-running'
+    ABORT_RUNNING = 'abort-running'
 
     @classmethod
     def get_default_policy(cls):
@@ -124,7 +124,7 @@ class OverrunPolicyHandler:
         self.policy = template.policy
 
     def new_workflow(self, running=None):
-        method = getattr(self, '_' + self.policy.name)
+        method = getattr(self, '_' + self.policy.name.lower())
         return method(running or [])
 
     def _check_wflow(self, wflow):
@@ -431,7 +431,7 @@ class Workflow(asyncio.Future):
         None is returned when called not in the context of a Workflow.
         """
         loop = loop or asyncio.get_event_loop()
-        task = asyncio.Task.current_task(loop)
+        task = asyncio.current_task(loop)
         workflow = None
         if task:
             workflow = _get_workflow_from_task(task)
@@ -459,7 +459,7 @@ class Workflow(asyncio.Future):
         self.lock = asyncio.Lock()
         # Create the workflow in the 'locked' state when its overrun policy is
         # 'skip-until-unlock'.
-        if self.policy is OverrunPolicy.skip_until_unlock:
+        if self.policy is OverrunPolicy.SKIP_UNTIL_UNLOCK:
             self.lock._locked = True
         # Work with an event broker
         self._broker = broker or get_broker(self._loop)
@@ -502,7 +502,7 @@ class Workflow(asyncio.Future):
         Adds a done callback to the passed or current task so as to unlock the
         workflow when the task gets done.
         """
-        task = task or asyncio.Task.current_task()
+        task = task or asyncio.current_task()
         task.add_done_callback(self._unlock)
 
     def _register_to_broker(self, task_tmpl, task):
@@ -560,7 +560,7 @@ class Workflow(asyncio.Future):
         """
         # A workflow can be ran only once
         if self.tasks:
-            raise RuntimeError('a workflow can be run only once!')
+            raise RuntimeError('A workflow can be run only once!')
 
         # Run the root task
         self._committed.set()
@@ -594,7 +594,7 @@ class Workflow(asyncio.Future):
         It is assumed all tasks are tukio tasks (aka `TukioTask` objects).
         """
         try:
-            task = task_tmpl.new_task(event, loop=self._loop)
+            task = task_tmpl.new_task(self, event, loop=self._loop)
             # Register the `data_received` callback (if required) as soon as
             # the execution of the task is scheduled.
             self._register_to_broker(task_tmpl, task)
@@ -603,8 +603,8 @@ class Workflow(asyncio.Future):
             self._internal_exc = exc
             self._cancel_all_tasks()
             return None
-        task._workflow = self
-        log.debug('new task created for %s', task_tmpl)
+
+        log.debug('New task created for %s', task_tmpl)
 
         def next_tasks(future):
             asyncio.ensure_future(self._run_next_tasks(future))
@@ -820,7 +820,7 @@ class Workflow(asyncio.Future):
         This method is intended to be called at runtime by the task itself.
         `task_tmpl_ids` must be a list (can be empty) of task template IDs.
         """
-        task = asyncio.Task.current_task(self._loop)
+        task = asyncio.current_task(self._loop)
         if task not in self.tasks:
             raise RuntimeError('task {} not executed by {}'.format(task, self))
         self._updated_next_tasks[task] = task_tmpl_ids

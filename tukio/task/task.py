@@ -80,7 +80,7 @@ def register(task_name, coro_name=None):
     return decorator
 
 
-def new_task(task_name, *, data=None, config=None, timeout=None, loop=None):
+def new_task(workflow, task_name, *, data=None, template=None, config=None, timeout=None, loop=None):
     """
     Schedules the execution of the coroutine registered as `task_name` (either
     defined in a task holder class or not) in the loop and returns an instance
@@ -92,8 +92,8 @@ def new_task(task_name, *, data=None, config=None, timeout=None, loop=None):
         coro = coro_fn(task_holder, data)
     else:
         coro = coro_fn(data)
-
     task = asyncio.ensure_future(coro, loop=loop)
+    task.setup(workflow, template, data)
     if timeout:
         TimeoutHandle(task, timeout).start()
     return task

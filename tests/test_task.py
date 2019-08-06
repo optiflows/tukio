@@ -258,75 +258,99 @@ class TestTaskRegistry(unittest.TestCase):
         self.assertIs(coro_fn, BasicTaskHolder.mycoro)
 
 
-class TestNewTask(unittest.TestCase):
+import pytest
+from unittest.mock import Mock
+
+
+@pytest.fixture
+def setup_testnewtask():
+    # Save the initial state of `TaskRegistry`
+    backup = _save_registry()
+    # Register all tasks used in the tests
+    register('my-task-holder', 'do_it')(MyTaskHolder)
+    register('my-coro-task')(my_coro_task)
+    register('task-bad-inputs', 'dummy')(BadInitTaskHolder1)
+    register('task-init-exc', 'dummy')(BadInitTaskHolder2)
+    register('task-bad-coro', 'dummy')(BadExecTaskHolder1)
+    yield
+    # Await all dummy tasks created before test case complete to keep a
+    # clean output.
+    loop = asyncio.get_event_loop()
+    tasks = asyncio.all_tasks(loop=loop)
+    loop.run_until_complete(asyncio.wait(tasks))
+    # Restore the initial state of `TaskRegistry`
+    _restore_registry(backup)
+
+
+class TestNewTask:
 
     """
     Test new tasks are created as expected from registered Tukio task names.
     """
 
-    @classmethod
-    def setUpClass(cls):
-        # Save the initial state of `TaskRegistry`
-        cls._backup = _save_registry()
-        # Register all tasks used in the tests
-        register('my-task-holder', 'do_it')(MyTaskHolder)
-        register('my-coro-task')(my_coro_task)
-        register('task-bad-inputs', 'dummy')(BadInitTaskHolder1)
-        register('task-init-exc', 'dummy')(BadInitTaskHolder2)
-        register('task-bad-coro', 'dummy')(BadExecTaskHolder1)
+    # @classmethod
+    # def setUpClass(cls):
+    #     # Save the initial state of `TaskRegistry`
+    #     cls._backup = _save_registry()
+    #     # Register all tasks used in the tests
+    #     register('my-task-holder', 'do_it')(MyTaskHolder)
+    #     register('my-coro-task')(my_coro_task)
+    #     register('task-bad-inputs', 'dummy')(BadInitTaskHolder1)
+    #     register('task-init-exc', 'dummy')(BadInitTaskHolder2)
+    #     register('task-bad-coro', 'dummy')(BadExecTaskHolder1)
 
-    @classmethod
-    def tearDownClass(cls):
-        # Await all dummy tasks created before test case complete to keep a
-        # clean output.
-        loop = asyncio.get_event_loop()
-        tasks = asyncio.Task.all_tasks(loop=loop)
-        loop.run_until_complete(asyncio.wait(tasks))
-        # Restore the initial state of `TaskRegistry`
-        _restore_registry(cls._backup)
+    # @classmethod
+    # def tearDownClass(cls):
+    #     # Await all dummy tasks created before test case complete to keep a
+    #     # clean output.
+    #     loop = asyncio.get_event_loop()
+    #     tasks = asyncio.all_tasks(loop=loop)
+    #     loop.run_until_complete(asyncio.wait(tasks))
+    #     # Restore the initial state of `TaskRegistry`
+    #     _restore_registry(cls._backup)
 
-    def test_new_task_ok(self):
+    def test_new_task_ok(self, setup_testnewtask):
         """
         Various cases which must lead to create asyncio tasks successfully.
         """
         # Create a task from a task holder
-        task = new_task('my-task-holder')
-        self.assertIsInstance(task, asyncio.Task)
+        task = new_task(Mock(), 'my-task-holder')
+        assert isinstance(task, asyncio.Task)
 
         # Create a task from a simple coroutine
-        task = new_task('my-coro-task')
-        self.assertIsInstance(task, asyncio.Task)
+        task = new_task(Mock(), 'my-coro-task')
+        assert isinstance(task, asyncio.Task)
 
-    def test_new_task_unknown(self):
+    def test_new_task_unknown(self, setup_testnewtask):
         """
         Cannot create a new task from an unknown name. It must raise a KeyError
         exception (just like `TaskRegistry.get`).
         """
-        with self.assertRaises(UnknownTaskName):
-            new_task('dummy')
+        with pytest.raises(UnknownTaskName):
+            new_task(Mock(), 'dummy')
 
-    def test_new_task_bad_inputs(self):
+    def test_new_task_bad_inputs(self, setup_testnewtask):
         """
         Trying to create a new asyncio task with invalid inputs must raise
         a `TypeError` exception.
         """
         # 1 (mandatory) positional argument (None) passed to the coroutine
         # whereas the coroutine takes no argument
-        with self.assertRaisesRegex(TypeError, 'positional argument'):
-            new_task('task-bad-coro')
+        with pytest.raises(TypeError, match='positional argument'):
+            new_task(Mock(), 'task-bad-coro')
 
-    def test_new_task_bad_holder(self):
+    def test_new_task_bad_holder(self, setup_testnewtask):
         """
         Trying to create a new task from an invalid task holder may raise
         various exceptions. Ensure those exceptions are raised by `new_task`.
         """
         # Cannot create a task with `__init__` has an  invalid signature
-        with self.assertRaisesRegex(TypeError, 'positional argument'):
-            new_task('task-bad-inputs', config={'hello': 'world'})
+        with pytest.raises(TypeError, match='positional argument'):
+            new_task(Mock(), 'task-bad-inputs', config={'hello': 'world'})
 
         # Cannot create a task when `__init__` raises an exception
-        with self.assertRaises(MyDummyError):
-            new_task('task-init-exc')
+        with pytest.raises(MyDummyError):
+            new_task(Mock(), 'task-init-exc')
 
 
 class TestTaskFactory(unittest.TestCase):
@@ -494,7 +518,7 @@ class TestTaskTemplate(unittest.TestCase):
         # Await all dummy tasks created before test case complete to keep a
         # clean output.
         loop = asyncio.get_event_loop()
-        tasks = asyncio.Task.all_tasks(loop=loop)
+        tasks = asyncio.all_tasks(loop=loop)
         loop.run_until_complete(asyncio.wait(tasks))
         _restore_registry(cls._backup)
 
