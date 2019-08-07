@@ -30,15 +30,13 @@ class TaskTemplate:
     def listen(self):
         return Listen.get(self.topics)
 
-    def new_task(self, workflow, data, loop=None):
+    def new_task(self, data, loop=None):
         """
         Create a new asyncio task from the current task template.
         """
         return new_task(
-            workflow,
             self.name,
             data=data,
-            template=self,
             config=self.config,
             timeout=self.timeout,
             loop=loop,

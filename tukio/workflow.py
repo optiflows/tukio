@@ -431,7 +431,7 @@ class Workflow(asyncio.Future):
         None is returned when called not in the context of a Workflow.
         """
         loop = loop or asyncio.get_event_loop()
-        task = asyncio.current_task(loop)
+        task = asyncio.Task.current_task(loop)
         workflow = None
         if task:
             workflow = _get_workflow_from_task(task)
@@ -502,7 +502,7 @@ class Workflow(asyncio.Future):
         Adds a done callback to the passed or current task so as to unlock the
         workflow when the task gets done.
         """
-        task = task or asyncio.current_task()
+        task = task or asyncio.Task.current_task()
         task.add_done_callback(self._unlock)
 
     def _register_to_broker(self, task_tmpl, task):
@@ -594,7 +594,7 @@ class Workflow(asyncio.Future):
         It is assumed all tasks are tukio tasks (aka `TukioTask` objects).
         """
         try:
-            task = task_tmpl.new_task(self, event, loop=self._loop)
+            task = task_tmpl.new_task(event, loop=self._loop)
             # Register the `data_received` callback (if required) as soon as
             # the execution of the task is scheduled.
             self._register_to_broker(task_tmpl, task)
@@ -604,6 +604,8 @@ class Workflow(asyncio.Future):
             self._cancel_all_tasks()
             return None
 
+        # Link the task to this workflow and send a broker BEGIN event.
+        task.setup_workflow(self, task_tmpl)
         log.debug('New task created for %s', task_tmpl)
 
         def next_tasks(future):
@@ -820,7 +822,7 @@ class Workflow(asyncio.Future):
         This method is intended to be called at runtime by the task itself.
         `task_tmpl_ids` must be a list (can be empty) of task template IDs.
         """
-        task = asyncio.current_task(self._loop)
+        task = asyncio.Task.current_task(self._loop)
         if task not in self.tasks:
             raise RuntimeError('task {} not executed by {}'.format(task, self))
         self._updated_next_tasks[task] = task_tmpl_ids

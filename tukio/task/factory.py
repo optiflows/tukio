@@ -67,7 +67,7 @@ class TukioTask(asyncio.Task):
         self._in_progress = False
         self._template = None
         self._workflow = None
-        self._source = None
+        self._source = EventSource()
         self._start = None
         self._end = None
         self._inputs = None
@@ -225,11 +225,10 @@ class TukioTask(asyncio.Task):
             source=self._source,
         )
 
-    def setup(self, workflow, template, data):
+    def setup_workflow(self, workflow, template):
         self._workflow = workflow
-        self._start = datetime.now(timezone.utc)
         self._template = template
-        self.inputs = data.data if isinstance(data, Event) else data
+        self._start = datetime.now(timezone.utc)
         source = {'task_exec_id': self.uid}
         if self._template:
             source['task_template_id'] = self._template.uid

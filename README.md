@@ -90,13 +90,13 @@ from tukio.task import register
 
 @register('my-task1')
 async def task1(event):
-    tid = asyncio.current_task().template.uid
+    tid = asyncio.Task.current_task().template.uid
     print(f'In task1 ({tid}): {event.data}')
     return {tid: 'data from task1'}
 
 @register('my-task2')
 async def task2(event):
-    tid = asyncio.current_task().template.uid
+    tid = asyncio.Task.current_task().template.uid
     print(f'In task2 ({tid}): {event.data}')
     event.data[tid] = 'data from task2'
     return event

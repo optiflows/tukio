@@ -10,6 +10,8 @@ execution of Tukio tasks in an asyncio event loop.
 import asyncio
 import logging
 import inspect
+
+from tukio.event import Event
 from tukio.utils import TimeoutHandle
 
 
@@ -80,7 +82,7 @@ def register(task_name, coro_name=None):
     return decorator
 
 
-def new_task(workflow, task_name, *, data=None, template=None, config=None, timeout=None, loop=None):
+def new_task(task_name, *, data=None, config=None, timeout=None, loop=None):
     """
     Schedules the execution of the coroutine registered as `task_name` (either
     defined in a task holder class or not) in the loop and returns an instance
@@ -93,7 +95,7 @@ def new_task(workflow, task_name, *, data=None, template=None, config=None, time
     else:
         coro = coro_fn(data)
     task = asyncio.ensure_future(coro, loop=loop)
-    task.setup(workflow, template, data)
+    task.inputs = data.data if isinstance(data, Event) else data
     if timeout:
         TimeoutHandle(task, timeout).start()
     return task
