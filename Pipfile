@@ -3,9 +3,6 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-[requires]
-python_version = '3.7'
-
 [packages]
 
 [dev-packages]
@@ -13,3 +10,6 @@ pytest = "*"
 coverage = "*"
 pytest-asyncio = "*"
 pytest-cov = "*"
+
+[requires]
+python_version = "3.7"
